@@ -28,7 +28,7 @@ import { auth, db, appId } from "../lib/firebase";
 
 import Dashboard from "./Dashboard";
 import ProfileSetupView from "./ProfileSetupView";
-
+import AdminAddProductView from "./AdminAddProductView";
 const getPublicCollection = (collectionName) =>
   collection(
     db,
