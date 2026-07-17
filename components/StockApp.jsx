@@ -9,7 +9,6 @@ import {
 } from "firebase/auth";
 
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -25,19 +24,6 @@ import AdminAddProductView from "./AdminAddProductView";
 import ProductDetailView from "./ProductDetailView";
 import QRScannerModal from "./QRScannerModal";
 
-/*
-  Firestore yapısı:
-
-  artifacts
-    └── vertice-stok
-         └── public
-              └── data
-                   ├── users
-                   ├── products
-                   ├── batches
-                   └── transactions
-*/
-
 const APP_ID = "vertice-stok";
 
 export const getPublicCollection = (collectionName) => {
@@ -52,57 +38,26 @@ export const getPublicCollection = (collectionName) => {
 };
 
 export default function StockApp() {
-  /*
-   * AUTH
-   */
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  const [isAuthLoading, setIsAuthLoading] =
-    useState(true);
-
-  /*
-   * FIRESTORE DATA
-   */
   const [products, setProducts] = useState([]);
   const [batches, setBatches] = useState([]);
-  const [transactions, setTransactions] =
-    useState([]);
+  const [transactions, setTransactions] = useState([]);
 
-  /*
-   * NAVIGATION
-   */
-  const [currentView, setCurrentView] =
-    useState("dashboard");
+  const [currentView, setCurrentView] = useState("dashboard");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const [selectedProduct, setSelectedProduct] =
-    useState(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isAddScannerOpen, setIsAddScannerOpen] = useState(false);
 
-  /*
-   * SCANNERS
-   */
-  const [isScannerOpen, setIsScannerOpen] =
-    useState(false);
+  const [scannedBarcodeForAdd, setScannedBarcodeForAdd] =
+    useState("");
 
-  const [
-    isAddScannerOpen,
-    setIsAddScannerOpen,
-  ] = useState(false);
-
-  const [
-    scannedBarcodeForAdd,
-    setScannedBarcodeForAdd,
-  ] = useState("");
-
-  /*
-   * TOAST
-   */
   const [toast, setToast] = useState(null);
 
-  const showToast = (
-    message,
-    type = "success"
-  ) => {
+  const showToast = (message, type = "success") => {
     setToast({
       message,
       type,
@@ -125,47 +80,45 @@ export default function StockApp() {
           await signInAnonymously(auth);
         }
 
-        unsubscribeAuth =
-          onAuthStateChanged(
-            auth,
-            async (firebaseUser) => {
-              setUser(firebaseUser);
+        unsubscribeAuth = onAuthStateChanged(
+          auth,
+          async (firebaseUser) => {
+            setUser(firebaseUser);
 
-              if (!firebaseUser) {
-                setDbUser(null);
-                setIsAuthLoading(false);
-                return;
-              }
-
-              try {
-                const userReference = doc(
-                  getPublicCollection("users"),
-                  firebaseUser.uid
-                );
-
-                const userSnapshot =
-                  await getDoc(userReference);
-
-                if (userSnapshot.exists()) {
-                  setDbUser({
-                    uid: firebaseUser.uid,
-                    ...userSnapshot.data(),
-                  });
-                } else {
-                  setDbUser(null);
-                }
-              } catch (error) {
-                console.error(
-                  "Profil yükleme hatası:",
-                  error
-                );
-
-                setDbUser(null);
-              }
-
+            if (!firebaseUser) {
+              setDbUser(null);
               setIsAuthLoading(false);
+              return;
             }
-          );
+
+            try {
+              const userReference = doc(
+                getPublicCollection("users"),
+                firebaseUser.uid
+              );
+
+              const userSnapshot = await getDoc(userReference);
+
+              if (userSnapshot.exists()) {
+                setDbUser({
+                  uid: firebaseUser.uid,
+                  ...userSnapshot.data(),
+                });
+              } else {
+                setDbUser(null);
+              }
+            } catch (error) {
+              console.error(
+                "Profil yükleme hatası:",
+                error
+              );
+
+              setDbUser(null);
+            }
+
+            setIsAuthLoading(false);
+          }
+        );
       } catch (error) {
         console.error(
           "Firebase giriş hatası:",
@@ -186,89 +139,78 @@ export default function StockApp() {
   }, []);
 
   /*
-   * FIRESTORE LISTENERS
+   * FIRESTORE VERİLERİ
    */
   useEffect(() => {
     if (!user || !dbUser) {
       return;
     }
 
-    const unsubscribeProducts =
-      onSnapshot(
-        getPublicCollection("products"),
-        (snapshot) => {
-          const data =
-            snapshot.docs.map(
-              (documentSnapshot) => ({
-                id:
-                  documentSnapshot.id,
-                ...documentSnapshot.data(),
-              })
-            );
+    const unsubscribeProducts = onSnapshot(
+      getPublicCollection("products"),
+      (snapshot) => {
+        const data = snapshot.docs.map(
+          (documentSnapshot) => ({
+            id: documentSnapshot.id,
+            ...documentSnapshot.data(),
+          })
+        );
 
-          setProducts(data);
-        },
-        (error) => {
-          console.error(
-            "Ürünler yüklenemedi:",
-            error
-          );
-        }
-      );
+        setProducts(data);
+      },
+      (error) => {
+        console.error(
+          "Ürünler yüklenemedi:",
+          error
+        );
+      }
+    );
 
-    const unsubscribeBatches =
-      onSnapshot(
-        getPublicCollection("batches"),
-        (snapshot) => {
-          const data =
-            snapshot.docs.map(
-              (documentSnapshot) => ({
-                id:
-                  documentSnapshot.id,
-                ...documentSnapshot.data(),
-              })
-            );
+    const unsubscribeBatches = onSnapshot(
+      getPublicCollection("batches"),
+      (snapshot) => {
+        const data = snapshot.docs.map(
+          (documentSnapshot) => ({
+            id: documentSnapshot.id,
+            ...documentSnapshot.data(),
+          })
+        );
 
-          setBatches(data);
-        },
-        (error) => {
-          console.error(
-            "Partiler yüklenemedi:",
-            error
-          );
-        }
-      );
+        setBatches(data);
+      },
+      (error) => {
+        console.error(
+          "Partiler yüklenemedi:",
+          error
+        );
+      }
+    );
 
-    const unsubscribeTransactions =
-      onSnapshot(
-        getPublicCollection(
-          "transactions"
-        ),
-        (snapshot) => {
-          const data =
-            snapshot.docs.map(
-              (documentSnapshot) => ({
-                id:
-                  documentSnapshot.id,
-                ...documentSnapshot.data(),
-              })
-            );
+    const unsubscribeTransactions = onSnapshot(
+      getPublicCollection("transactions"),
+      (snapshot) => {
+        const data = snapshot.docs.map(
+          (documentSnapshot) => ({
+            id: documentSnapshot.id,
+            ...documentSnapshot.data(),
+          })
+        );
 
-          data.sort(
-            (a, b) =>
-              new Date(b.date || 0) -
-              new Date(a.date || 0)
-          );
+        data.sort(
+          (a, b) =>
+            new Date(b.date || 0) -
+            new Date(a.date || 0)
+        );
 
-          setTransactions(data);
-        },
-        (error) => {
-          console.error(
-            "Hareketler yüklenemedi:",
-            error
-          );
-        }
-      );
+        setTransactions(data);
+      },
+      (error) => {
+        console.error(
+          "Hareketler yüklenemedi:",
+          error
+        );
+      }
+    );
 
     return () => {
       unsubscribeProducts();
@@ -279,10 +221,6 @@ export default function StockApp() {
 
   /*
    * PROFİL OLUŞTUR
-   *
-   * ProfileSetupView:
-   * onSetup(name, role)
-   * şeklinde çağıracak.
    */
   const handleCreateProfile = async (
     name,
@@ -302,8 +240,7 @@ export default function StockApp() {
         uid: user.uid,
         name: name.trim(),
         role,
-        createdAt:
-          new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
 
       await setDoc(
@@ -338,167 +275,154 @@ export default function StockApp() {
   /*
    * BİLDİRİMLER
    */
-  const activeNotifications =
-    useMemo(() => {
-      const notifications = [];
+  const activeNotifications = useMemo(() => {
+    const notifications = [];
 
-      /*
-       * KRİTİK STOK
-       */
-      products.forEach((product) => {
-        const totalStock = batches
-          .filter(
-            (batch) =>
-              batch.productId ===
-              product.id
-          )
-          .reduce(
-            (total, batch) =>
-              total +
-              Number(
-                batch.quantity || 0
-              ),
-            0
-          );
-
-        const minimumStock =
-          Number(
-            product.minStock || 0
-          );
-
-        if (
-          totalStock <= minimumStock
-        ) {
-          notifications.push({
-            id: `critical-${product.id}`,
-            type: "CRITICAL",
-            title:
-              "Kritik Stok Uyarısı",
-            message:
-              `${product.name} kritik stok seviyesinde. ` +
-              `Mevcut: ${totalStock} / Minimum: ${minimumStock}`,
-          });
-        }
-      });
-
-      /*
-       * SKT KONTROLÜ
-       */
-      batches.forEach((batch) => {
-        const quantity =
-          Number(
-            batch.quantity || 0
-          );
-
-        if (
-          quantity <= 0 ||
-          !batch.expiryDate
-        ) {
-          return;
-        }
-
-        const expiry =
-          new Date(
-            batch.expiryDate
-          );
-
-        const today = new Date();
-
-        expiry.setHours(
-          0,
-          0,
-          0,
+    products.forEach((product) => {
+      const totalStock = batches
+        .filter(
+          (batch) =>
+            batch.productId === product.id
+        )
+        .reduce(
+          (total, batch) =>
+            total + Number(batch.quantity || 0),
           0
         );
 
-        today.setHours(
-          0,
-          0,
-          0,
-          0
-        );
+      const minimumStock = Number(
+        product.minStock || 0
+      );
 
-        const milliseconds =
-          expiry.getTime() -
-          today.getTime();
+      if (totalStock <= minimumStock) {
+        notifications.push({
+          id: `critical-${product.id}`,
+          type: "CRITICAL",
+          title: "Kritik Stok Uyarısı",
+          message:
+            `${product.name} kritik stok seviyesinde. ` +
+            `Mevcut: ${totalStock} / Minimum: ${minimumStock}`,
+        });
+      }
+    });
 
-        const daysLeft =
-          Math.ceil(
-            milliseconds /
-              (1000 *
-                60 *
-                60 *
-                24)
-          );
+    batches.forEach((batch) => {
+      const quantity = Number(
+        batch.quantity || 0
+      );
 
-        const product =
-          products.find(
-            (item) =>
-              item.id ===
-              batch.productId
-          );
+      if (
+        quantity <= 0 ||
+        !batch.expiryDate
+      ) {
+        return;
+      }
 
-        const productName =
-          product?.name ||
-          "Bilinmeyen Ürün";
+      const expiry = new Date(
+        batch.expiryDate
+      );
 
-        if (daysLeft < 0) {
-          notifications.push({
-            id: `expired-${batch.id}`,
-            type: "ERROR",
-            title: "SKT Geçti",
-            message:
-              `${productName} - Parti #${batch.batchNo || "-"} ` +
-              `ürününün son kullanma tarihi geçti.`,
-          });
+      const today = new Date();
 
-          return;
-        }
+      expiry.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
 
-        if (daysLeft <= 30) {
-          notifications.push({
-            id: `expiry-${batch.id}`,
-            type: "WARNING",
-            title:
-              "SKT Yaklaşıyor",
-            message:
-              `${productName} - Parti #${batch.batchNo || "-"} ` +
-              `için ${daysLeft} gün kaldı.`,
-          });
-        }
-      });
+      const milliseconds =
+        expiry.getTime() -
+        today.getTime();
 
-      return notifications;
-    }, [
-      products,
-      batches,
-    ]);
+      const daysLeft = Math.ceil(
+        milliseconds /
+          (1000 * 60 * 60 * 24)
+      );
+
+      const product = products.find(
+        (item) =>
+          item.id === batch.productId
+      );
+
+      const productName =
+        product?.name ||
+        "Bilinmeyen Ürün";
+
+      if (daysLeft < 0) {
+        notifications.push({
+          id: `expired-${batch.id}`,
+          type: "ERROR",
+          title: "SKT Geçti",
+          message:
+            `${productName} - Parti #${batch.batchNo || "-"} ` +
+            `ürününün son kullanma tarihi geçti.`,
+        });
+
+        return;
+      }
+
+      if (daysLeft <= 30) {
+        notifications.push({
+          id: `expiry-${batch.id}`,
+          type: "WARNING",
+          title: "SKT Yaklaşıyor",
+          message:
+            `${productName} - Parti #${batch.batchNo || "-"} ` +
+            `için ${daysLeft} gün kaldı.`,
+        });
+      }
+    });
+
+    return notifications;
+  }, [products, batches]);
 
   /*
-   * NORMAL QR ARAMA
+   * ÜRÜN ARA / OKUT
+   *
+   * YENİ AKIŞ:
+   *
+   * 1. Barkod okutulur.
+   * 2. Ürün varsa ürün detayı açılır.
+   * 3. Ürün yoksa Yeni Ürün Ekle ekranı açılır.
+   * 4. Okutulan barkod otomatik olarak aktarılır.
    */
   const handleScanSuccess = (
     decodedText
   ) => {
     setIsScannerOpen(false);
 
-    const cleanCode =
-      String(
-        decodedText || ""
-      ).trim();
+    const cleanCode = String(
+      decodedText || ""
+    ).trim();
 
-    const foundProduct =
-      products.find(
-        (product) =>
-          String(
-            product.qrNo || ""
-          ).trim() === cleanCode
+    if (!cleanCode) {
+      showToast(
+        "Geçerli bir barkod okunamadı.",
+        "error"
       );
 
+      return;
+    }
+
+    /*
+     * Barkodu farklı olası alanlarda ara.
+     * Böylece eski kayıtlarla da uyumluluk sağlanır.
+     */
+    const foundProduct = products.find(
+      (product) => {
+        const productCode = String(
+          product.qrNo ||
+            product.barcode ||
+            product.barcodeNo ||
+            ""
+        ).trim();
+
+        return productCode === cleanCode;
+      }
+    );
+
+    /*
+     * ÜRÜN VARSA
+     */
     if (foundProduct) {
-      setSelectedProduct(
-        foundProduct
-      );
+      setSelectedProduct(foundProduct);
 
       setCurrentView(
         "product_detail"
@@ -512,35 +436,65 @@ export default function StockApp() {
       return;
     }
 
+    /*
+     * ÜRÜN YOKSA
+     *
+     * Barkodu kaydet ve
+     * Yeni Ürün Ekle ekranını aç.
+     */
+    setSelectedProduct(null);
+
+    setScannedBarcodeForAdd(
+      cleanCode
+    );
+
+    setCurrentView(
+      "admin_add"
+    );
+
     showToast(
-      "Bu barkoda ait kayıtlı ürün bulunamadı.",
-      "error"
+      "Bu barkod sistemde kayıtlı değil. Yeni ürün olarak ekleyebilirsiniz.",
+      "success"
     );
   };
 
   /*
-   * YENİ ÜRÜN EKLEME QR
+   * YENİ ÜRÜN EKLEME EKRANINDAN
+   * BARKOD OKUTMA
    */
   const handleAddScan = (
     decodedText
   ) => {
     setIsAddScannerOpen(false);
 
-    const cleanCode =
-      String(
-        decodedText || ""
-      ).trim();
+    const cleanCode = String(
+      decodedText || ""
+    ).trim();
 
-    const foundProduct =
-      products.find(
-        (product) =>
-          String(
-            product.qrNo || ""
-          ).trim() === cleanCode
+    if (!cleanCode) {
+      showToast(
+        "Geçerli bir barkod okunamadı.",
+        "error"
       );
 
+      return;
+    }
+
+    const foundProduct = products.find(
+      (product) => {
+        const productCode = String(
+          product.qrNo ||
+            product.barcode ||
+            product.barcodeNo ||
+            ""
+        ).trim();
+
+        return productCode === cleanCode;
+      }
+    );
+
     /*
-     * ÜRÜN ZATEN VARSA
+     * BARKOD ZATEN KAYITLIYSA
      */
     if (foundProduct) {
       setSelectedProduct(
@@ -560,7 +514,7 @@ export default function StockApp() {
     }
 
     /*
-     * YENİ ÜRÜN
+     * YENİ BARKOD
      */
     setScannedBarcodeForAdd(
       cleanCode
@@ -571,7 +525,7 @@ export default function StockApp() {
     );
 
     showToast(
-      "Yeni barkod. Ürün bilgilerini tamamlayın.",
+      "Barkod okundu. Ürün bilgilerini tamamlayın.",
       "success"
     );
   };
@@ -594,19 +548,18 @@ export default function StockApp() {
   /*
    * DASHBOARD'A DÖN
    */
-  const handleBackToDashboard =
-    () => {
-      setSelectedProduct(
-        null
-      );
+  const handleBackToDashboard = () => {
+    setSelectedProduct(null);
 
-      setCurrentView(
-        "dashboard"
-      );
-    };
+    setScannedBarcodeForAdd("");
+
+    setCurrentView(
+      "dashboard"
+    );
+  };
 
   /*
-   * LOGOUT
+   * ÇIKIŞ
    */
   const handleLogout = async () => {
     try {
@@ -633,7 +586,7 @@ export default function StockApp() {
   };
 
   /*
-   * LOADING
+   * YÜKLENİYOR
    */
   if (isAuthLoading) {
     return (
@@ -660,6 +613,7 @@ export default function StockApp() {
     return (
       <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
+
           <h1 className="text-2xl font-black">
             Vertice Stok
           </h1>
@@ -677,6 +631,7 @@ export default function StockApp() {
           >
             Tekrar Dene
           </button>
+
         </div>
       </main>
     );
@@ -689,9 +644,7 @@ export default function StockApp() {
     return (
       <>
         {toast && (
-          <Toast
-            toast={toast}
-          />
+          <Toast toast={toast} />
         )}
 
         <ProfileSetupView
@@ -708,9 +661,12 @@ export default function StockApp() {
 
   return (
     <div className="max-w-md mx-auto h-screen bg-gray-950 text-gray-100 overflow-hidden relative shadow-2xl">
+
       {toast && (
         <Toast toast={toast} />
       )}
+
+      {/* ÜRÜN ARAMA TARAYICISI */}
 
       {isScannerOpen && (
         <QRScannerModal
@@ -724,19 +680,21 @@ export default function StockApp() {
         />
       )}
 
+      {/* YENİ ÜRÜN BARKOD TARAYICISI */}
+
       {isAddScannerOpen && (
         <QRScannerModal
           title="Barkod Okutarak Ekle"
           onClose={() =>
-            setIsAddScannerOpen(
-              false
-            )
+            setIsAddScannerOpen(false)
           }
           onScan={
             handleAddScan
           }
         />
       )}
+
+      {/* DASHBOARD */}
 
       {currentView ===
         "dashboard" && (
@@ -751,14 +709,10 @@ export default function StockApp() {
             handleOpenProduct
           }
           onOpenScanner={() =>
-            setIsScannerOpen(
-              true
-            )
+            setIsScannerOpen(true)
           }
           onOpenAddScanner={() =>
-            setIsAddScannerOpen(
-              true
-            )
+            setIsAddScannerOpen(true)
           }
           onOpenInventory={() => {
             showToast(
@@ -786,6 +740,8 @@ export default function StockApp() {
         />
       )}
 
+      {/* YENİ ÜRÜN EKLE */}
+
       {currentView ===
         "admin_add" && (
         <AdminAddProductView
@@ -800,6 +756,8 @@ export default function StockApp() {
           }
         />
       )}
+
+      {/* ÜRÜN DETAY */}
 
       {currentView ===
         "product_detail" &&
@@ -828,6 +786,8 @@ export default function StockApp() {
           />
         )}
 
+      {/* PROFİL */}
+
       {currentView ===
         "profile" && (
         <ProfileScreen
@@ -840,6 +800,7 @@ export default function StockApp() {
           }
         />
       )}
+
     </div>
   );
 }
@@ -853,6 +814,7 @@ function Toast({ toast }) {
 
   return (
     <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[300] w-[90%] max-w-sm">
+
       <div
         className={`px-5 py-4 rounded-2xl shadow-2xl border text-sm font-bold text-white ${
           isError
@@ -862,12 +824,13 @@ function Toast({ toast }) {
       >
         {toast.message}
       </div>
+
     </div>
   );
 }
 
 /*
- * PROFİL EKRANI
+ * PROFİL
  */
 function ProfileScreen({
   dbUser,
@@ -876,7 +839,9 @@ function ProfileScreen({
 }) {
   return (
     <div className="flex flex-col h-full bg-gray-950">
+
       <header className="p-6 bg-gray-900 border-b border-gray-800">
+
         <button
           type="button"
           onClick={onBack}
@@ -888,10 +853,13 @@ function ProfileScreen({
         <h1 className="text-2xl font-black text-white">
           Profil
         </h1>
+
       </header>
 
       <main className="flex-1 p-6">
+
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
+
           <div className="w-20 h-20 mx-auto bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center justify-center text-blue-400 text-3xl font-black">
             {dbUser?.name
               ?.charAt(0)
@@ -910,6 +878,7 @@ function ProfileScreen({
               ? "Yönetici"
               : "Personel"}
           </span>
+
         </div>
 
         <button
@@ -919,7 +888,9 @@ function ProfileScreen({
         >
           Çıkış Yap
         </button>
+
       </main>
+
     </div>
   );
-      }
+  }
