@@ -4,14 +4,13 @@ import { useState } from "react";
 import { addDoc } from "firebase/firestore";
 import {
   ArrowLeft,
-  PackagePlus,
-  QrCode,
+  Package,
   Save,
+  QrCode,
+  AlertTriangle,
 } from "lucide-react";
 
-import {
-  getPublicCollection,
-} from "./StockApp";
+import { getPublicCollection } from "./StockApp";
 
 export default function AdminAddProductView({
   onBack,
@@ -23,16 +22,12 @@ export default function AdminAddProductView({
     category: "",
     minStock: "",
     shelfLocation: "",
-    qrNo: scannedBarcode,
+    qrNo: scannedBarcode || "",
   });
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const updateField = (
-    field,
-    value
-  ) => {
+  const handleChange = (field, value) => {
     setFormData((previous) => ({
       ...previous,
       [field]: value,
@@ -40,26 +35,21 @@ export default function AdminAddProductView({
   };
 
   const handleSubmit = async () => {
-    const cleanName =
-      formData.name.trim();
+    const name = formData.name.trim();
+    const qrNo = formData.qrNo.trim();
+    const minStock = Number(formData.minStock);
 
-    const cleanBarcode =
-      formData.qrNo.trim();
-
-    const minimumStock =
-      Number(formData.minStock);
-
-    if (!cleanName) {
-      showToast(
-        "Ürün adı zorunludur.",
+    if (!name) {
+      showToast?.(
+        "Lütfen ürün adını girin.",
         "error"
       );
       return;
     }
 
-    if (!cleanBarcode) {
-      showToast(
-        "Barkod veya QR kodu zorunludur.",
+    if (!qrNo) {
+      showToast?.(
+        "Lütfen barkod veya QR numarası girin.",
         "error"
       );
       return;
@@ -67,57 +57,47 @@ export default function AdminAddProductView({
 
     if (
       formData.minStock === "" ||
-      Number.isNaN(minimumStock) ||
-      minimumStock < 0
+      Number.isNaN(minStock) ||
+      minStock < 0
     ) {
-      showToast(
+      showToast?.(
         "Geçerli bir kritik stok miktarı girin.",
         "error"
       );
       return;
     }
 
+    setIsSaving(true);
+
     try {
-      setIsSaving(true);
-
       await addDoc(
-        getPublicCollection(
-          "products"
-        ),
+        getPublicCollection("products"),
         {
-          name: cleanName,
-
+          name,
           category:
-            formData.category.trim() ||
-            "Diğer",
-
-          minStock:
-            minimumStock,
-
+            formData.category.trim() || "Diğer",
+          minStock,
           shelfLocation:
             formData.shelfLocation.trim(),
-
-          qrNo:
-            cleanBarcode,
-
-          createdAt:
-            new Date().toISOString(),
+          qrNo,
+          createdAt: new Date().toISOString(),
         }
       );
 
-      showToast(
-        `${cleanName} başarıyla eklendi.`
+      showToast?.(
+        "Ürün başarıyla eklendi.",
+        "success"
       );
 
-      onBack();
+      onBack?.();
     } catch (error) {
       console.error(
         "Ürün ekleme hatası:",
         error
       );
 
-      showToast(
-        "Ürün kaydedilirken bir hata oluştu.",
+      showToast?.(
+        "Ürün eklenirken bir hata oluştu.",
         "error"
       );
     } finally {
@@ -126,162 +106,112 @@ export default function AdminAddProductView({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950">
-
-      {/* Header */}
-
-      <header className="flex items-center gap-4 p-5 bg-gray-900 border-b border-gray-800">
-
+    <div className="flex flex-col h-full bg-gray-950 text-white">
+      <header className="flex items-center gap-4 p-6 bg-gray-900 border-b border-gray-800">
         <button
           type="button"
           onClick={onBack}
-          className="p-2.5 bg-gray-800 rounded-full text-white active:scale-95"
+          className="p-2 bg-gray-800 rounded-full text-white active:scale-95"
         >
-          <ArrowLeft
-            size={20}
-          />
+          <ArrowLeft size={20} />
         </button>
 
         <div>
-
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-xl font-bold">
             Yeni Ürün Ekle
           </h1>
 
           <p className="text-xs text-gray-500 mt-1">
-            Ürün kartı oluştur
+            Ürün bilgilerini sisteme kaydedin.
           </p>
-
         </div>
-
       </header>
 
-      {/* Form */}
+      <div className="flex-1 overflow-y-auto p-6 pb-32">
+        <div className="flex justify-center mb-8">
+          <div className="w-20 h-20 bg-blue-600/10 border border-blue-600/20 rounded-3xl flex items-center justify-center">
+            <Package
+              size={38}
+              className="text-blue-400"
+            />
+          </div>
+        </div>
 
-      <main className="flex-1 overflow-y-auto p-5 pb-32">
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">
+              Barkod / QR No *
+            </label>
 
-        <div className="max-w-md mx-auto space-y-5">
+            <div className="relative">
+              <QrCode
+                size={20}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"
+              />
 
-          {/* Barcode */}
-
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4">
-
-            <div className="flex items-center gap-3">
-
-              <div className="p-3 bg-blue-500/10 rounded-xl">
-
-                <QrCode
-                  size={24}
-                  className="text-blue-400"
-                />
-
-              </div>
-
-              <div className="flex-1 min-w-0">
-
-                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
-                  Barkod / QR Kodu
-                </p>
-
-                <p className="text-blue-400 font-mono font-bold mt-1 break-all">
-                  {formData.qrNo ||
-                    "Kod girilmedi"}
-                </p>
-
-              </div>
-
+              <input
+                type="text"
+                value={formData.qrNo}
+                onChange={(event) =>
+                  handleChange(
+                    "qrNo",
+                    event.target.value
+                  )
+                }
+                placeholder="Örn: 8691234567890"
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-12 pr-4 py-4 text-white font-mono outline-none focus:border-blue-500"
+              />
             </div>
 
+            {scannedBarcode && (
+              <p className="text-xs text-green-500 mt-2">
+                Okutulan kod otomatik olarak
+                eklendi.
+              </p>
+            )}
           </div>
 
-          {/* Product Name */}
-
           <div>
-
-            <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">
+            <label className="block text-sm text-gray-400 mb-2">
               Ürün Adı *
             </label>
 
             <input
               type="text"
-              value={
-                formData.name
-              }
-              onChange={(
-                event
-              ) =>
-                updateField(
+              value={formData.name}
+              onChange={(event) =>
+                handleChange(
                   "name",
                   event.target.value
                 )
               }
               placeholder="Örn: Coca Cola 330 ml"
-              className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
             />
-
           </div>
 
-          {/* Barcode Manual */}
-
           <div>
-
-            <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">
-              Barkod / QR No *
-            </label>
-
-            <input
-              type="text"
-              value={
-                formData.qrNo
-              }
-              onChange={(
-                event
-              ) =>
-                updateField(
-                  "qrNo",
-                  event.target.value
-                )
-              }
-              placeholder="8691234567890"
-              className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 text-white font-mono outline-none focus:border-blue-500 transition-colors"
-            />
-
-          </div>
-
-          {/* Category */}
-
-          <div>
-
-            <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">
+            <label className="block text-sm text-gray-400 mb-2">
               Kategori
             </label>
 
             <input
               type="text"
-              value={
-                formData.category
-              }
-              onChange={(
-                event
-              ) =>
-                updateField(
+              value={formData.category}
+              onChange={(event) =>
+                handleChange(
                   "category",
                   event.target.value
                 )
               }
               placeholder="Örn: Meşrubat"
-              className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
             />
-
           </div>
 
-          {/* Stock / Shelf */}
-
           <div className="grid grid-cols-2 gap-4">
-
             <div>
-
-              <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">
+              <label className="block text-sm text-gray-400 mb-2">
                 Kritik Stok *
               </label>
 
@@ -289,28 +219,74 @@ export default function AdminAddProductView({
                 type="number"
                 min="0"
                 inputMode="numeric"
-                value={
-                  formData.minStock
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateField(
+                value={formData.minStock}
+                onChange={(event) =>
+                  handleChange(
                     "minStock",
                     event.target.value
                   )
                 }
-                placeholder="10"
-                className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 text-white outline-none focus:border-blue-500"
+                placeholder="Örn: 10"
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
               />
-
             </div>
 
             <div>
-
-              <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">
+              <label className="block text-sm text-gray-400 mb-2">
                 Raf Konumu
               </label>
 
               <input
-               
+                type="text"
+                value={formData.shelfLocation}
+                onChange={(event) =>
+                  handleChange(
+                    "shelfLocation",
+                    event.target.value
+                  )
+                }
+                placeholder="Örn: A-01"
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4 flex gap-3">
+            <AlertTriangle
+              size={20}
+              className="text-yellow-500 shrink-0 mt-0.5"
+            />
+
+            <div>
+              <p className="text-yellow-500 text-sm font-bold">
+                Stok bilgisi
+              </p>
+
+              <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+                Ürün kaydedildikten sonra ürün
+                detayından stok girişi yapabilirsiniz.
+                Parti numarası ve son kullanma tarihi
+                stok girişinde kaydedilecektir.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-900 border-t border-gray-800">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSaving}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+        >
+          <Save size={20} />
+
+          {isSaving
+            ? "Kaydediliyor..."
+            : "Ürünü Kaydet"}
+        </button>
+      </div>
+    </div>
+  );
+                    }
