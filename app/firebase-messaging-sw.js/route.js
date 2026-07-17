@@ -1,0 +1,195 @@
+export async function GET() {
+  const firebaseConfig = {
+    apiKey:
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+
+    authDomain:
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+
+    projectId:
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+
+    storageBucket:
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+
+    messagingSenderId:
+      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+
+    appId:
+      process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+  };
+
+  const serviceWorkerCode = `
+importScripts(
+  "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"
+);
+
+importScripts(
+  "https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js"
+);
+
+firebase.initializeApp(
+  ${JSON.stringify(firebaseConfig)}
+);
+
+const messaging = firebase.messaging();
+
+/*
+ * ARKA PLAN BİLDİRİMLERİ
+ */
+messaging.onBackgroundMessage((payload) => {
+
+  console.log(
+    "[Vertice Stok] Arka plan bildirimi:",
+    payload
+  );
+
+  const notificationTitle =
+    payload.notification?.title ||
+    payload.data?.title ||
+    "Vertice Stok";
+
+  const notificationBody =
+    payload.notification?.body ||
+    payload.data?.body ||
+    "Yeni bir bildiriminiz var.";
+
+  const notificationOptions = {
+
+    body: notificationBody,
+
+    icon: "/icon-192.png",
+
+    badge: "/icon-192.png",
+
+    tag:
+      payload.data?.notificationId ||
+      "vertice-stok",
+
+    renotify: true,
+
+    requireInteraction:
+      payload.data?.priority === "critical",
+
+    vibrate: [
+      300,
+      100,
+      300,
+      100,
+      500
+    ],
+
+    data: {
+
+      url:
+        payload.data?.url ||
+        "/",
+
+      productId:
+        payload.data?.productId ||
+        "",
+
+      batchId:
+        payload.data?.batchId ||
+        "",
+
+      type:
+        payload.data?.type ||
+        "GENERAL"
+
+    }
+
+  };
+
+  return self.registration.showNotification(
+    notificationTitle,
+    notificationOptions
+  );
+
+});
+
+
+/*
+ * BİLDİRİME TIKLANDIĞINDA
+ */
+self.addEventListener(
+  "notificationclick",
+  (event) => {
+
+    event.notification.close();
+
+    const targetUrl =
+      event.notification.data?.url ||
+      "/";
+
+    event.waitUntil(
+
+      clients
+        .matchAll({
+          type: "window",
+          includeUncontrolled: true
+        })
+        .then((clientList) => {
+
+          /*
+           * UYGULAMA ZATEN AÇIKSA
+           */
+          for (
+            const client
+            of clientList
+          ) {
+
+            if (
+              "navigate" in client &&
+              "focus" in client
+            ) {
+
+              return client
+                .navigate(targetUrl)
+                .then(() =>
+                  client.focus()
+                );
+
+            }
+
+          }
+
+          /*
+           * UYGULAMA KAPALIYSA
+           */
+          if (
+            clients.openWindow
+          ) {
+
+            return clients.openWindow(
+              targetUrl
+            );
+
+          }
+
+          return null;
+
+        })
+
+    );
+
+  }
+);
+`;
+
+  return new Response(
+    serviceWorkerCode,
+    {
+      headers: {
+        "Content-Type":
+          "application/javascript; charset=utf-8",
+
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate",
+
+        "Service-Worker-Allowed":
+          "/",
+      },
+    }
+  );
+}
