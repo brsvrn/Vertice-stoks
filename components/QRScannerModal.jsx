@@ -1,427 +1,345 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  X,
-  ScanLine,
-  Keyboard,
-  AlertTriangle,
-} from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function QRScannerModal({
+  title = "Ürün Ara / Okut",
   onClose,
   onScan,
-  title = "QR / Barkod Okut",
 }) {
   const scannerRef = useRef(null);
-  const isScanningRef = useRef(false);
+  const hasScannedRef = useRef(false);
 
+  const [error, setError] = useState("");
+  const [manualMode, setManualMode] = useState(false);
   const [manualCode, setManualCode] = useState("");
-  const [showManualInput, setShowManualInput] =
-    useState(false);
-  const [scannerError, setScannerError] =
-    useState("");
+  const [isStarting, setIsStarting] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    let scriptElement = null;
+    let mounted = true;
 
-    const startScanner = () => {
-      if (
-        !isMounted ||
-        !window.Html5QrcodeScanner ||
-        scannerRef.current
-      ) {
-        return;
-      }
-
+    const startScanner = async () => {
       try {
-        const scanner =
-          new window.Html5QrcodeScanner(
-            "vertice-qr-reader",
-            {
-              fps: 10,
+        setError("");
+        setIsStarting(true);
 
-              qrbox: {
-                width: 250,
-                height: 250,
-              },
+        const scanner = new Html5Qrcode("qr-reader");
 
-              aspectRatio: 1,
+        scannerRef.current = scanner;
 
-              rememberLastUsedCamera:
-                true,
+        const cameraConfig = {
+          facingMode: {
+            ideal: "environment",
+          },
+        };
 
-              showTorchButtonIfSupported:
-                true,
+        const scannerConfig = {
+          fps: 10,
 
-              showZoomSliderIfSupported:
-                true,
-            },
-            false
-          );
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const width = Math.min(
+              viewfinderWidth * 0.85,
+              320
+            );
 
-        scannerRef.current =
-          scanner;
+            const height = Math.min(
+              viewfinderHeight * 0.4,
+              160
+            );
 
-        scanner.render(
-          async (
-            decodedText
-          ) => {
-            if (
-              isScanningRef.current
-            ) {
+            return {
+              width,
+              height,
+            };
+          },
+
+          aspectRatio: 1.777778,
+        };
+
+        await scanner.start(
+          cameraConfig,
+          scannerConfig,
+
+          async (decodedText) => {
+            if (hasScannedRef.current) {
               return;
             }
 
-            isScanningRef.current =
-              true;
+            hasScannedRef.current = true;
 
             try {
               if (
-                scannerRef.current
+                scannerRef.current &&
+                scannerRef.current.isScanning
               ) {
-                await scannerRef.current.clear();
+                await scannerRef.current.stop();
               }
-            } catch (error) {
-              console.warn(
-                "Tarayıcı kapatılırken hata:",
-                error
+            } catch (stopError) {
+              console.log(
+                "Tarayıcı durdurma:",
+                stopError
               );
             }
 
-            scannerRef.current =
-              null;
-
-            if (
-              isMounted
-            ) {
-              onScan(
-                decodedText
-              );
-            }
+            onScan(decodedText);
           },
 
           () => {
-            // Her başarısız kareyi
-            // konsola yazdırmıyoruz.
+            // Barkod bulunamadığında hata göstermiyoruz.
+            // Kamera taramaya devam eder.
           }
         );
-      } catch (error) {
+
+        if (mounted) {
+          setIsStarting(false);
+        }
+      } catch (scannerError) {
         console.error(
-          "QR tarayıcı başlatılamadı:",
-          error
+          "Kamera başlatma hatası:",
+          scannerError
         );
 
-        if (isMounted) {
-          setScannerError(
-            "Kamera başlatılamadı. Kamera iznini kontrol edin veya manuel giriş kullanın."
+        if (mounted) {
+          setIsStarting(false);
+
+          setError(
+            "Kamera açılamadı. Tarayıcı ayarlarından kamera izni verdiğinizden emin olun."
           );
         }
       }
     };
 
-    const loadScannerLibrary =
-      () => {
-        if (
-          window.Html5QrcodeScanner
-        ) {
-          startScanner();
-          return;
-        }
-
-        const existingScript =
-          document.querySelector(
-            'script[data-vertice-qr="true"]'
-          );
-
-        if (existingScript) {
-          existingScript.addEventListener(
-            "load",
-            startScanner
-          );
-
-          return;
-        }
-
-        scriptElement =
-          document.createElement(
-            "script"
-          );
-
-        scriptElement.src =
-          "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-
-        scriptElement.async =
-          true;
-
-        scriptElement.dataset.verticeQr =
-          "true";
-
-        scriptElement.onload =
-          startScanner;
-
-        scriptElement.onerror =
-          () => {
-            if (
-              isMounted
-            ) {
-              setScannerError(
-                "QR tarayıcı yüklenemedi. İnternet bağlantınızı kontrol edin veya manuel giriş kullanın."
-              );
-            }
-          };
-
-        document.body.appendChild(
-          scriptElement
-        );
-      };
-
-    loadScannerLibrary();
+    const timer = setTimeout(() => {
+      startScanner();
+    }, 300);
 
     return () => {
-      isMounted = false;
+      mounted = false;
 
-      if (
-        scannerRef.current
-      ) {
+      clearTimeout(timer);
+
+      const stopScanner = async () => {
         try {
-          scannerRef.current
-            .clear()
-            .catch(() => {});
-        } catch {
-          // Tarayıcı zaten kapanmış olabilir.
+          if (
+            scannerRef.current &&
+            scannerRef.current.isScanning
+          ) {
+            await scannerRef.current.stop();
+          }
+
+          if (scannerRef.current) {
+            scannerRef.current.clear();
+          }
+        } catch (error) {
+          console.log(
+            "Kamera kapatma:",
+            error
+          );
         }
+      };
 
-        scannerRef.current =
-          null;
-      }
-
-      if (
-        scriptElement
-      ) {
-        scriptElement.onload =
-          null;
-        scriptElement.onerror =
-          null;
-      }
+      stopScanner();
     };
   }, [onScan]);
 
-  const handleManualSubmit =
-    () => {
-      const cleanCode =
-        manualCode.trim();
-
-      if (!cleanCode) {
-        return;
+  const handleClose = async () => {
+    try {
+      if (
+        scannerRef.current &&
+        scannerRef.current.isScanning
+      ) {
+        await scannerRef.current.stop();
       }
 
-      onScan(
-        cleanCode
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+      }
+    } catch (error) {
+      console.log(
+        "Kamera kapatma:",
+        error
       );
-    };
+    }
+
+    onClose();
+  };
+
+  const handleManualSubmit = () => {
+    const cleanCode = manualCode.trim();
+
+    if (!cleanCode) {
+      setError(
+        "Lütfen barkod veya QR kodunu girin."
+      );
+
+      return;
+    }
+
+    onScan(cleanCode);
+  };
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black flex flex-col">
+    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
+      {/* HEADER */}
 
-      {/* Header */}
-
-      <header className="p-5 flex items-center justify-between bg-gray-900 border-b border-gray-800">
-
-        <div className="flex items-center gap-3">
-
-          <div className="p-2 bg-blue-600/20 rounded-xl">
-
-            <ScanLine
-              size={24}
-              className="text-blue-400"
-            />
-
+      <header className="bg-gray-900 border-b border-gray-800 px-5 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-600/20 flex items-center justify-center text-2xl">
+            ▣
           </div>
 
           <div>
-
-            <h2 className="text-lg font-bold text-white">
+            <h1 className="text-white text-xl font-black">
               {title}
-            </h2>
+            </h1>
 
-            <p className="text-[10px] text-gray-500">
+            <p className="text-gray-500 text-sm mt-1">
               Vertice Stok
             </p>
-
           </div>
-
         </div>
 
         <button
           type="button"
-          onClick={onClose}
-          className="p-3 bg-gray-800 rounded-full text-white active:scale-95"
-          aria-label="Tarayıcıyı kapat"
+          onClick={handleClose}
+          className="w-12 h-12 rounded-full bg-gray-800 text-white text-3xl flex items-center justify-center"
         >
-          <X size={20} />
+          ×
         </button>
-
       </header>
 
-      {/* Scanner */}
+      {/* ANA İÇERİK */}
 
-      <main className="flex-1 overflow-y-auto p-5">
+      <main className="flex-1 overflow-y-auto">
+        {!manualMode ? (
+          <>
+            {/* KAMERA */}
 
-        <div className="max-w-sm mx-auto">
+            <div className="relative w-full bg-black">
+              <div
+                id="qr-reader"
+                className="w-full overflow-hidden"
+              />
 
-          <div className="bg-gray-900 rounded-3xl border border-gray-800 overflow-hidden p-3">
+              {isStarting && (
+                <div className="absolute inset-0 min-h-[300px] flex flex-col items-center justify-center bg-gray-950">
+                  <div className="w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
 
-            <div
-              id="vertice-qr-reader"
-              className="w-full overflow-hidden rounded-2xl"
-            />
+                  <p className="text-white font-bold mt-5">
+                    Kamera açılıyor...
+                  </p>
 
-          </div>
-
-          <div className="mt-6 text-center">
-
-            <p className="text-white font-bold">
-              Barkodu kameraya gösterin
-            </p>
-
-            <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-              Ürün üzerindeki QR kodu veya barkodu kamera alanının ortasında tutun.
-            </p>
-
-          </div>
-
-          {/* Scanner Error */}
-
-          {scannerError && (
-
-            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-
-              <div className="flex gap-3">
-
-                <AlertTriangle
-                  size={20}
-                  className="text-red-400 shrink-0"
-                />
-
-                <p className="text-red-300 text-sm">
-                  {
-                    scannerError
-                  }
-                </p>
-
-              </div>
-
+                  <p className="text-gray-500 text-sm mt-2">
+                    Arka kamera hazırlanıyor
+                  </p>
+                </div>
+              )}
             </div>
 
-          )}
+            {/* AÇIKLAMA */}
 
-          {/* Manual Input */}
+            <div className="px-6 py-7 text-center">
+              <h2 className="text-white text-xl font-black">
+                Barkodu kameraya gösterin
+              </h2>
 
-          <div className="mt-6">
+              <p className="text-gray-500 mt-3 leading-7">
+                Ürün üzerindeki QR kodu veya barkodu
+                kameranın ortasında tutun.
+              </p>
 
-            {!showManualInput ? (
+              <p className="text-blue-400 text-sm font-bold mt-3">
+                Kod algılandığında otomatik olarak
+                taranacaktır.
+              </p>
+            </div>
+          </>
+        ) : (
+          /* MANUEL GİRİŞ */
+
+          <div className="p-6">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+              <h2 className="text-white text-xl font-black">
+                Kodu Manuel Gir
+              </h2>
+
+              <p className="text-gray-500 text-sm mt-2">
+                Ürünün barkod veya QR kod numarasını
+                aşağıya yazın.
+              </p>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                value={manualCode}
+                onChange={(event) =>
+                  setManualCode(event.target.value)
+                }
+                placeholder="Barkod / QR kodu"
+                className="w-full mt-6 bg-gray-950 border border-gray-700 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
+                autoFocus
+              />
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowManualInput(
-                    true
-                  )
-                }
-                className="w-full bg-gray-900 border border-gray-800 text-gray-300 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+                onClick={handleManualSubmit}
+                className="w-full mt-4 bg-blue-600 text-white font-black py-4 rounded-xl"
               >
-
-                <Keyboard
-                  size={20}
-                />
-
-                Kodu Manuel Gir
-
+                Ürünü Ara
               </button>
 
-            ) : (
-
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-
-                <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">
-                  Barkod / QR Kodu
-                </label>
-
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoFocus
-                  value={
-                    manualCode
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setManualCode(
-                      event
-                        .target
-                        .value
-                    )
-                  }
-                  onKeyDown={(
-                    event
-                  ) => {
-                    if (
-                      event.key ===
-                      "Enter"
-                    ) {
-                      handleManualSubmit();
-                    }
-                  }}
-                  placeholder="Örn: 8691234567890"
-                  className="w-full mt-3 bg-gray-950 border border-gray-800 rounded-xl p-4 text-white font-mono outline-none focus:border-blue-500"
-                />
-
-                <div className="grid grid-cols-2 gap-3 mt-3">
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowManualInput(
-                        false
-                      );
-
-                      setManualCode(
-                        ""
-                      );
-                    }}
-                    className="bg-gray-800 text-gray-300 py-3 rounded-xl font-bold"
-                  >
-                    İptal
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleManualSubmit
-                    }
-                    disabled={
-                      !manualCode.trim()
-                    }
-                    className="bg-blue-600 disabled:bg-gray-800 disabled:text-gray-600 text-white py-3 rounded-xl font-bold"
-                  >
-                    Onayla
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
+              <button
+                type="button"
+                onClick={() => {
+                  setManualMode(false);
+                  setError("");
+                }}
+                className="w-full mt-3 bg-gray-800 text-gray-300 font-bold py-4 rounded-xl"
+              >
+                Kameraya Dön
+              </button>
+            </div>
           </div>
+        )}
 
-        </div>
+        {/* HATA */}
 
+        {error && (
+          <div className="mx-6 mb-5 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <p className="text-red-400 text-sm">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {/* MANUEL GİRİŞ BUTONU */}
+
+        {!manualMode && (
+          <div className="px-6 pb-8">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  if (
+                    scannerRef.current &&
+                    scannerRef.current.isScanning
+                  ) {
+                    await scannerRef.current.stop();
+                  }
+                } catch (error) {
+                  console.log(error);
+                }
+
+                setManualMode(true);
+              }}
+              className="w-full bg-gray-900 border border-gray-800 text-gray-300 font-bold py-5 rounded-2xl"
+            >
+              ⌨ Kodu Manuel Gir
+            </button>
+          </div>
+        )}
       </main>
-
     </div>
   );
 }
