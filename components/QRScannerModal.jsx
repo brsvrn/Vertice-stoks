@@ -1,455 +1,456 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  Html5Qrcode,
-  Html5QrcodeSupportedFormats,
-} from "html5-qrcode";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType, NotFoundException } from "@zxing/library";
 
-export default function QRScannerModal({
-  title = "Ürün Ara / Okut",
-  onClose,
-  onScan,
-}) {
-  const scannerRef = useRef(null);
-  const mountedRef = useRef(true);
-  const hasScannedRef = useRef(false);
-  const startingRef = useRef(false);
+const SUPPORTED_FORMATS = [
+  BarcodeFormat.QR_CODE,
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.CODE_39,
+];
 
-  const [status, setStatus] = useState("starting");
-  const [error, setError] = useState("");
-  const [manualMode, setManualMode] = useState(false);
-  const [manualCode, setManualCode] = useState("");
+const SCAN_STATE = {
+  IDLE: "idle",
+  REQUESTING_PERMISSION: "requesting_permission",
+  STARTING: "starting",
+  SCANNING: "scanning",
+  ERROR: "error",
+};
 
-  /*
-   * KAMERAYI GÜVENLİ ŞEKİLDE DURDUR
-   */
-  const stopScanner = async () => {
-    try {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
-      }
-    } catch (err) {
-      console.log("Kamera durdurma hatası:", err);
-    }
+const DUPLICATE_SCAN_COOLDOWN_MS = 2000;
 
-    try {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
-      }
-    } catch (err) {
-      console.log("Tarayıcı temizleme hatası:", err);
-    }
+export default function QRScannerModal({ isOpen, onClose, onScan }) {
+  const [scanState, setScanState] = useState(SCAN_STATE.IDLE);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
+  const [manualBarcodeValue, setManualBarcodeValue] = useState("");
+  const [manualEntryError, setManualEntryError] = useState("");
 
-    scannerRef.current = null;
-  };
+  const videoRef = useRef(null);
+  const readerRef = useRef(null);
+  const streamRef = useRef(null);
+  const lastScannedTextRef = useRef(null);
+  const lastScannedAtRef = useRef(0);
+  const hasScannedSuccessfullyRef = useRef(false);
+  const isCleaningUpRef = useRef(false);
 
-  /*
-   * KAMERA İZNİNİ İSTE
-   */
-  const requestCameraPermission = async () => {
-    if (
-      typeof navigator === "undefined" ||
-      !navigator.mediaDevices ||
-      !navigator.mediaDevices.getUserMedia
-    ) {
-      throw new Error("CAMERA_NOT_SUPPORTED");
-    }
-
-    /*
-     * getUserMedia çağrısı tarayıcının
-     * gerçek kamera izin penceresini tetikler.
-     */
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true, // Sadece izin almak için genel video isteği yeterli
-      audio: false,
-    });
-
-    /*
-     * Burada sadece izin alıyoruz.
-     * html5-qrcode birazdan kamerayı tekrar açacak.
-     * Bu nedenle geçici stream'i kapatıyoruz.
-     */
-    stream.getTracks().forEach((track) => {
-      track.stop();
-    });
-
-    return true;
-  };
-
-  /*
-   * ARKA KAMERAYI BAŞLAT
-   */
-  const startScanner = async () => {
-    if (startingRef.current) {
-      return;
-    }
-
-    startingRef.current = true;
-    hasScannedRef.current = false;
-
-    try {
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setStatus("permission");
-      setError("");
-
-      /*
-       * 1. ADIM:
-       * Tarayıcıdan kamera iznini açıkça iste.
-       */
-      await requestCameraPermission();
-
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setStatus("starting");
-
-      /*
-       * Önceden açık bir scanner varsa temizle.
-       */
-      await stopScanner();
-
-      /*
-       * DOM'un hazırlanmasını bekle.
-       */
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (!mountedRef.current) {
-        return;
-      }
-
-      /*
-       * 2. ADIM:
-       * Kameraları manuel listeleyip arka kamerayı tespit et
-       */
-      const cameras = await Html5Qrcode.getCameras();
-      let cameraIdToUse = null;
-
-      if (cameras && cameras.length > 0) {
-        // Genellikle isimlerinde 'back', 'arka' veya 'environment' geçer
-        const backCamera = cameras.find(
-          (c) =>
-            c.label.toLowerCase().includes("back") ||
-            c.label.toLowerCase().includes("arka") ||
-            c.label.toLowerCase().includes("environment")
-        );
-
-        if (backCamera) {
-          cameraIdToUse = backCamera.id;
-        } else {
-          // İsimden bulunamazsa mobil cihazlarda genelde son kamera arka kameradır
-          cameraIdToUse = cameras[cameras.length - 1].id;
+  const stopCameraStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* no-op */
         }
+      });
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+      } catch {
+        /* no-op */
+      }
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const cleanupScanner = useCallback(() => {
+    if (isCleaningUpRef.current) return;
+    isCleaningUpRef.current = true;
+
+    if (readerRef.current) {
+      try {
+        readerRef.current.reset();
+      } catch {
+        /* no-op */
+      }
+      readerRef.current = null;
+    }
+
+    stopCameraStream();
+
+    lastScannedTextRef.current = null;
+    lastScannedAtRef.current = 0;
+    hasScannedSuccessfullyRef.current = false;
+    isCleaningUpRef.current = false;
+  }, [stopCameraStream]);
+
+  const resolvePreferredDeviceId = useCallback(async () => {
+    const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+
+    if (!devices || devices.length === 0) {
+      throw new Error("NO_CAMERA_FOUND");
+    }
+
+    const environmentDevice = devices.find((device) => {
+      const label = device.label?.toLowerCase() ?? "";
+      return (
+        label.includes("back") ||
+        label.includes("environment") ||
+        label.includes("arka") ||
+        label.includes("rear")
+      );
+    });
+
+    return environmentDevice ? environmentDevice.deviceId : devices[0].deviceId;
+  }, []);
+
+  const startScanner = useCallback(async () => {
+    setScanState(SCAN_STATE.REQUESTING_PERMISSION);
+    setErrorMessage("");
+
+    try {
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, SUPPORTED_FORMATS);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+
+      const reader = new BrowserMultiFormatReader(hints);
+      readerRef.current = reader;
+
+      setScanState(SCAN_STATE.STARTING);
+
+      let deviceId;
+      try {
+        deviceId = await resolvePreferredDeviceId();
+      } catch (deviceError) {
+        if (deviceError.message === "NO_CAMERA_FOUND") {
+          setErrorMessage("Kamera bulunamadı.");
+          setScanState(SCAN_STATE.ERROR);
+          return;
+        }
+        throw deviceError;
       }
 
-      const cameraConfig = cameraIdToUse
-        ? { deviceId: { exact: cameraIdToUse } }
-        : { facingMode: "environment" }; // Fallback
+      await reader.decodeFromVideoDevice(
+        deviceId,
+        videoRef.current,
+        (result, error) => {
+          if (videoRef.current && videoRef.current.srcObject) {
+            streamRef.current = videoRef.current.srcObject;
+          }
 
-      /*
-       * 3. ADIM:
-       * QR/Barkod tarayıcı oluştur.
-       */
-      const scanner = new Html5Qrcode("qr-reader");
-      scannerRef.current = scanner;
+          if (result) {
+            const scannedText = result.getText();
+            const now = Date.now();
 
-      /*
-       * 4. ADIM:
-       * Seçilen kamera ile tarayıcıyı başlat
-       */
-      await scanner.start(
-        cameraConfig,
-        {
-          fps: 15,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const width = Math.floor(Math.min(viewfinderWidth * 0.85, 350));
-            const height = Math.floor(Math.min(viewfinderHeight * 0.5, 250));
+            const isDuplicate =
+              lastScannedTextRef.current === scannedText &&
+              now - lastScannedAtRef.current < DUPLICATE_SCAN_COOLDOWN_MS;
 
-            return {
-              width,
-              height,
-            };
-          },
-          // Sadece aradığımız formatlara odaklan (Performans & Doğruluk)
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-          ],
-        },
-        /*
-         * KOD BAŞARIYLA OKUNDU
-         */
-        async (decodedText) => {
-          if (hasScannedRef.current) {
+            if (isDuplicate || hasScannedSuccessfullyRef.current) {
+              return;
+            }
+
+            lastScannedTextRef.current = scannedText;
+            lastScannedAtRef.current = now;
+            hasScannedSuccessfullyRef.current = true;
+
+            cleanupScanner();
+            onScan?.(scannedText);
             return;
           }
 
-          hasScannedRef.current = true;
-
-          try {
-            await stopScanner();
-          } catch (err) {
-            console.log(err);
+          if (error && !(error instanceof NotFoundException)) {
+            // Kare bazlı decode hataları (NotFoundException) beklenen davranıştır,
+            // bu yüzden sadece gerçek hatalar için sessizce devam edilir.
           }
-
-          if (mountedRef.current) {
-            onScan(decodedText);
-          }
-        },
-        /*
-         * Henüz kod algılanmadı.
-         */
-        () => {}
+        }
       );
 
-      if (mountedRef.current) {
-        setStatus("scanning");
-      }
-    } catch (err) {
-      console.error("Kamera başlatma hatası:", err);
-
-      if (!mountedRef.current) {
-        return;
+      if (videoRef.current && videoRef.current.srcObject) {
+        streamRef.current = videoRef.current.srcObject;
       }
 
-      setStatus("error");
+      setScanState(SCAN_STATE.SCANNING);
+    } catch (error) {
+      let message = "Kamera başlatılamadı.";
 
-      /*
-       * HATA TÜRLERİNİ AYIR
-       */
-      if (
-        err?.name === "NotAllowedError" ||
-        err?.name === "PermissionDeniedError"
-      ) {
-        setError(
-          "Kamera izni verilmedi. Aşağıdaki 'Kamera İzni İste' butonuna dokunun ve açılan izin penceresinde 'İzin Ver' seçeneğini seçin."
-        );
-        return;
-      }
+      const errorName = error?.name || "";
 
       if (
-        err?.name === "NotFoundError" ||
-        err?.name === "DevicesNotFoundError"
+        errorName === "NotAllowedError" ||
+        errorName === "PermissionDeniedError"
       ) {
-        setError("Bu cihazda kullanılabilir bir kamera bulunamadı.");
-        return;
-      }
-
-      if (
-        err?.name === "NotReadableError" ||
-        err?.name === "TrackStartError" ||
-        err?.name === "OverconstrainedError"
+        message = "Tarayıcı kamera erişimine izin vermedi.";
+      } else if (
+        errorName === "NotFoundError" ||
+        errorName === "DevicesNotFoundError"
       ) {
-        setError(
-          "Kamera başlatılamadı veya başka bir uygulama tarafından kullanılıyor olabilir. Uygulamaları kapatıp tekrar deneyin."
-        );
-        return;
+        message = "Kamera bulunamadı.";
+      } else if (errorName === "NotReadableError") {
+        message = "Kameraya başka bir uygulama tarafından erişiliyor.";
       }
 
-      if (err?.message === "CAMERA_NOT_SUPPORTED") {
-        setError(
-          "Bu tarayıcı kamera erişimini desteklemiyor. Uygulamayı güncel Chrome tarayıcısında açmayı deneyin."
-        );
-        return;
-      }
-
-      setError("Kamera başlatılamadı. Kamera iznini kontrol edip tekrar deneyin.");
-    } finally {
-      startingRef.current = false;
+      setErrorMessage(message);
+      setScanState(SCAN_STATE.ERROR);
     }
-  };
+  }, [cleanupScanner, onScan, resolvePreferredDeviceId]);
 
-  /*
-   * MODAL AÇILDIĞINDA KAMERAYI OTOMATİK BAŞLAT
-   */
   useEffect(() => {
-    mountedRef.current = true;
-
-    const timer = setTimeout(() => {
-      startScanner();
-    }, 500);
-
-    return () => {
-      mountedRef.current = false;
-      clearTimeout(timer);
-      stopScanner();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /*
-   * MODALI KAPAT
-   */
-  const handleClose = async () => {
-    await stopScanner();
-    onClose();
-  };
-
-  /*
-   * MANUEL MODA GEÇ
-   */
-  const openManualMode = async () => {
-    await stopScanner();
-    setError("");
-    setManualMode(true);
-  };
-
-  /*
-   * KAMERAYA GERİ DÖN
-   */
-  const returnToCamera = () => {
-    setManualMode(false);
-    setError("");
-
-    setTimeout(() => {
-      startScanner();
-    }, 300);
-  };
-
-  /*
-   * MANUEL KOD GÖNDER
-   */
-  const handleManualSubmit = () => {
-    const cleanCode = manualCode.trim();
-
-    if (!cleanCode) {
-      setError("Lütfen barkod veya QR kod numarasını girin.");
+    if (!isOpen) {
+      cleanupScanner();
+      setScanState(SCAN_STATE.IDLE);
+      setIsManualEntryOpen(false);
+      setManualBarcodeValue("");
+      setManualEntryError("");
       return;
     }
 
-    onScan(cleanCode);
+    startScanner();
+
+    return () => {
+      cleanupScanner();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
+      onClose?.();
+    }
   };
 
+  const handleManualEntryToggle = () => {
+    setIsManualEntryOpen((prev) => !prev);
+    setManualBarcodeValue("");
+    setManualEntryError("");
+  };
+
+  const handleManualEntrySubmit = (event) => {
+    event.preventDefault();
+    const trimmedValue = manualBarcodeValue.trim();
+
+    if (!trimmedValue) {
+      setManualEntryError("Lütfen bir barkod değeri girin.");
+      return;
+    }
+
+    cleanupScanner();
+    onScan?.(trimmedValue);
+  };
+
+  const handleRetry = () => {
+    setErrorMessage("");
+    startScanner();
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      {/* HEADER */}
-      <header className="bg-gray-900 border-b border-gray-800 px-5 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-white text-xl font-black">{title}</h1>
-          <p className="text-gray-500 text-sm mt-1">Vertice Stok</p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label="QR ve Barkod Tarayıcı"
+    >
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+            QR / Barkod Tara
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Kapat"
+            className="rounded-full p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="w-11 h-11 rounded-full bg-gray-800 text-white text-2xl flex items-center justify-center"
-        >
-          ×
-        </button>
-      </header>
 
-      <main className="flex-1 overflow-y-auto">
-        {!manualMode ? (
-          <>
-            {/* KAMERA ALANI */}
-            <div className="relative bg-black min-h-[320px]">
-              <div id="qr-reader" className="w-full" />
+        <div className="px-5 pb-5 pt-4">
+          <p className="mb-4 text-center text-sm text-slate-500 dark:text-slate-400">
+            Ürünün QR veya barkodunu kameraya gösterin.
+          </p>
 
-              {(status === "starting" || status === "permission") && (
-                <div className="absolute inset-0 min-h-[320px] bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
-                  <div className="w-12 h-12 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-                  <p className="text-white font-black mt-5">
-                    {status === "permission"
-                      ? "Kamera izni bekleniyor..."
-                      : "Arka kamera açılıyor..."}
-                  </p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Kamera erişimine izin verin
-                  </p>
+          {!isManualEntryOpen && (
+            <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-inner dark:border-slate-700">
+              <video
+                ref={videoRef}
+                className="h-full w-full object-cover"
+                muted
+                autoPlay
+                playsInline
+              />
+
+              {scanState === SCAN_STATE.SCANNING && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative h-3/4 w-3/4">
+                    <div className="absolute inset-0 rounded-xl border-2 border-emerald-400/80" />
+                    <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-emerald-400" />
+                    <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-emerald-400" />
+                    <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-emerald-400" />
+                    <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-emerald-400" />
+                    <div className="qr-scan-line absolute left-0 right-0 h-0.5 bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.7)]" />
+                  </div>
+                </div>
+              )}
+
+              {(scanState === SCAN_STATE.REQUESTING_PERMISSION ||
+                scanState === SCAN_STATE.STARTING) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/90 text-slate-200">
+                  <span className="h-10 w-10 animate-spin rounded-full border-4 border-slate-600 border-t-emerald-400" />
+                  <span className="text-sm font-medium">
+                    Kamera hazırlanıyor...
+                  </span>
+                </div>
+              )}
+
+              {scanState === SCAN_STATE.ERROR && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950/95 p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6 text-red-400"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">
+                      Kamera başlatılamadı
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {errorMessage}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-600"
+                  >
+                    Tekrar Dene
+                  </button>
                 </div>
               )}
             </div>
+          )}
 
-            {/* TARAYICI BİLGİSİ */}
-            {status === "scanning" && (
-              <div className="px-6 py-6 text-center">
-                <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-bold">
-                  ● Kamera Aktif
-                </div>
-                <h2 className="text-white text-xl font-black mt-5">
-                  Barkodu kameraya gösterin
-                </h2>
-                <p className="text-gray-500 mt-3">
-                  QR kodu veya ürün barkodunu kameranın ortasında tutun.
-                </p>
-                <p className="text-blue-400 text-sm font-bold mt-3">
-                  Algılandığında otomatik okunacaktır.
-                </p>
+          {isManualEntryOpen && (
+            <form onSubmit={handleManualEntrySubmit} className="space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                <label
+                  htmlFor="manual-barcode-input"
+                  className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300"
+                >
+                  Barkod Numarası
+                </label>
+                <input
+                  id="manual-barcode-input"
+                  type="text"
+                  inputMode="text"
+                  autoFocus
+                  value={manualBarcodeValue}
+                  onChange={(event) => {
+                    setManualBarcodeValue(event.target.value);
+                    if (manualEntryError) setManualEntryError("");
+                  }}
+                  placeholder="Barkodu elle gir"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none ring-emerald-400 transition focus:ring-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                />
+                {manualEntryError && (
+                  <p className="mt-1.5 text-xs font-medium text-red-500">
+                    {manualEntryError}
+                  </p>
+                )}
               </div>
-            )}
 
-            {/* HATA */}
-            {status === "error" && (
-              <div className="p-6">
-                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5">
-                  <h3 className="text-red-400 font-black">Kamera Açılamadı</h3>
-                  <p className="text-red-300 text-sm mt-2 leading-6">{error}</p>
-                  <button
-                    type="button"
-                    onClick={startScanner}
-                    className="w-full mt-5 bg-blue-600 text-white font-black py-4 rounded-xl"
-                  >
-                    Kamera İzni İste
-                  </button>
-                </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleManualEntryToggle}
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-600"
+                >
+                  Onayla
+                </button>
               </div>
-            )}
+            </form>
+          )}
 
-            {/* MANUEL GİRİŞ */}
-            <div className="px-6 pb-8">
+          {!isManualEntryOpen && (
+            <div className="mt-4">
               <button
                 type="button"
-                onClick={openManualMode}
-                className="w-full bg-gray-900 border border-gray-800 text-gray-300 font-bold py-5 rounded-2xl"
+                onClick={handleManualEntryToggle}
+                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-300 dark:hover:bg-slate-700"
               >
-                Kodu Manuel Gir
+                Manuel Giriş
               </button>
             </div>
-          </>
-        ) : (
-          /* MANUEL MOD */
-          <div className="p-6">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-              <h2 className="text-white text-xl font-black">Kodu Manuel Gir</h2>
-              <p className="text-gray-500 text-sm mt-2">
-                Barkod veya QR kod numarasını yazın.
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={manualCode}
-                onChange={(event) => setManualCode(event.target.value)}
-                placeholder="Barkod / QR kodu"
-                className="w-full mt-6 bg-gray-950 border border-gray-700 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
-                autoFocus
-              />
-              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
-              <button
-                type="button"
-                onClick={handleManualSubmit}
-                className="w-full mt-5 bg-blue-600 text-white font-black py-4 rounded-xl"
-              >
-                Ürünü Ara
-              </button>
-              <button
-                type="button"
-                onClick={returnToCamera}
-                className="w-full mt-3 bg-gray-800 text-gray-300 font-bold py-4 rounded-xl"
-              >
-                Kameraya Dön
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
+          )}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes qr-scan-line-move {
+          0% {
+            top: 0%;
+          }
+          50% {
+            top: 100%;
+          }
+          100% {
+            top: 0%;
+          }
+        }
+        .qr-scan-line {
+          animation: qr-scan-line-move 2.2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
+
+/*
+Gerekli npm paketleri:
+npm install @zxing/browser @zxing/library
+*/
