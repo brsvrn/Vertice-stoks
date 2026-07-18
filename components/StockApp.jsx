@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+import InventoryView from "./InventoryView";
 import {
   onAuthStateChanged,
   signInAnonymously,
@@ -1004,9 +1004,8 @@ export default function StockApp() {
             )
           }
           onOpenInventory={() => {
-            showToast(
-              "Sayım modülü sıradaki aşamada eklenecek.",
-              "error"
+  setCurrentView("inventory");
+}} 
             );
           }}
           onOpenHistory={() => {
