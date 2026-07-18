@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 
 export default function QRScannerModal({
   title = "Ürün Ara / Okut",
@@ -23,10 +26,7 @@ export default function QRScannerModal({
    */
   const stopScanner = async () => {
     try {
-      if (
-        scannerRef.current &&
-        scannerRef.current.isScanning
-      ) {
+      if (scannerRef.current && scannerRef.current.isScanning) {
         await scannerRef.current.stop();
       }
     } catch (err) {
@@ -60,15 +60,10 @@ export default function QRScannerModal({
      * getUserMedia çağrısı tarayıcının
      * gerçek kamera izin penceresini tetikler.
      */
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: {
-            ideal: "environment",
-          },
-        },
-        audio: false,
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true, // Sadece izin almak için genel video isteği yeterli
+      audio: false,
+    });
 
     /*
      * Burada sadece izin alıyoruz.
@@ -121,9 +116,7 @@ export default function QRScannerModal({
       /*
        * DOM'un hazırlanmasını bekle.
        */
-      await new Promise((resolve) =>
-        setTimeout(resolve, 300)
-      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       if (!mountedRef.current) {
         return;
@@ -131,53 +124,67 @@ export default function QRScannerModal({
 
       /*
        * 2. ADIM:
-       * QR/Barkod tarayıcı oluştur.
+       * Kameraları manuel listeleyip arka kamerayı tespit et
        */
-      const scanner =
-        new Html5Qrcode("qr-reader");
+      const cameras = await Html5Qrcode.getCameras();
+      let cameraIdToUse = null;
 
-      scannerRef.current = scanner;
+      if (cameras && cameras.length > 0) {
+        // Genellikle isimlerinde 'back', 'arka' veya 'environment' geçer
+        const backCamera = cameras.find(
+          (c) =>
+            c.label.toLowerCase().includes("back") ||
+            c.label.toLowerCase().includes("arka") ||
+            c.label.toLowerCase().includes("environment")
+        );
+
+        if (backCamera) {
+          cameraIdToUse = backCamera.id;
+        } else {
+          // İsimden bulunamazsa mobil cihazlarda genelde son kamera arka kameradır
+          cameraIdToUse = cameras[cameras.length - 1].id;
+        }
+      }
+
+      const cameraConfig = cameraIdToUse
+        ? { deviceId: { exact: cameraIdToUse } }
+        : { facingMode: "environment" }; // Fallback
 
       /*
        * 3. ADIM:
-       * Direkt arka kamerayı aç.
-       *
-       * environment = telefonun arka kamerası
+       * QR/Barkod tarayıcı oluştur.
+       */
+      const scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+
+      /*
+       * 4. ADIM:
+       * Seçilen kamera ile tarayıcıyı başlat
        */
       await scanner.start(
+        cameraConfig,
         {
-          facingMode: "environment",
-        },
-        {
-          fps: 10,
-
-          qrbox: (
-            viewfinderWidth,
-            viewfinderHeight
-          ) => {
-            const width = Math.floor(
-              Math.min(
-                viewfinderWidth * 0.85,
-                320
-              )
-            );
-
-            const height = Math.floor(
-              Math.min(
-                viewfinderHeight * 0.35,
-                160
-              )
-            );
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const width = Math.floor(Math.min(viewfinderWidth * 0.85, 350));
+            const height = Math.floor(Math.min(viewfinderHeight * 0.5, 250));
 
             return {
               width,
               height,
             };
           },
-
-          aspectRatio: 1.777778,
+          // Sadece aradığımız formatlara odaklan (Performans & Doğruluk)
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+          ],
         },
-
         /*
          * KOD BAŞARIYLA OKUNDU
          */
@@ -198,10 +205,8 @@ export default function QRScannerModal({
             onScan(decodedText);
           }
         },
-
         /*
          * Henüz kod algılanmadı.
-         * Hata göstermiyoruz.
          */
         () => {}
       );
@@ -210,10 +215,7 @@ export default function QRScannerModal({
         setStatus("scanning");
       }
     } catch (err) {
-      console.error(
-        "Kamera başlatma hatası:",
-        err
-      );
+      console.error("Kamera başlatma hatası:", err);
 
       if (!mountedRef.current) {
         return;
@@ -231,7 +233,6 @@ export default function QRScannerModal({
         setError(
           "Kamera izni verilmedi. Aşağıdaki 'Kamera İzni İste' butonuna dokunun ve açılan izin penceresinde 'İzin Ver' seçeneğini seçin."
         );
-
         return;
       }
 
@@ -239,46 +240,36 @@ export default function QRScannerModal({
         err?.name === "NotFoundError" ||
         err?.name === "DevicesNotFoundError"
       ) {
-        setError(
-          "Bu cihazda kullanılabilir bir kamera bulunamadı."
-        );
-
+        setError("Bu cihazda kullanılabilir bir kamera bulunamadı.");
         return;
       }
 
       if (
         err?.name === "NotReadableError" ||
-        err?.name === "TrackStartError"
+        err?.name === "TrackStartError" ||
+        err?.name === "OverconstrainedError"
       ) {
         setError(
-          "Kamera başka bir uygulama tarafından kullanılıyor olabilir. Diğer kamera uygulamalarını kapatıp tekrar deneyin."
+          "Kamera başlatılamadı veya başka bir uygulama tarafından kullanılıyor olabilir. Uygulamaları kapatıp tekrar deneyin."
         );
-
         return;
       }
 
-      if (
-        err?.message ===
-        "CAMERA_NOT_SUPPORTED"
-      ) {
+      if (err?.message === "CAMERA_NOT_SUPPORTED") {
         setError(
           "Bu tarayıcı kamera erişimini desteklemiyor. Uygulamayı güncel Chrome tarayıcısında açmayı deneyin."
         );
-
         return;
       }
 
-      setError(
-        "Kamera başlatılamadı. Kamera iznini kontrol edip tekrar deneyin."
-      );
+      setError("Kamera başlatılamadı. Kamera iznini kontrol edip tekrar deneyin.");
     } finally {
       startingRef.current = false;
     }
   };
 
   /*
-   * MODAL AÇILDIĞINDA
-   * KAMERAYI OTOMATİK BAŞLAT
+   * MODAL AÇILDIĞINDA KAMERAYI OTOMATİK BAŞLAT
    */
   useEffect(() => {
     mountedRef.current = true;
@@ -289,9 +280,7 @@ export default function QRScannerModal({
 
     return () => {
       mountedRef.current = false;
-
       clearTimeout(timer);
-
       stopScanner();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,7 +291,6 @@ export default function QRScannerModal({
    */
   const handleClose = async () => {
     await stopScanner();
-
     onClose();
   };
 
@@ -311,7 +299,6 @@ export default function QRScannerModal({
    */
   const openManualMode = async () => {
     await stopScanner();
-
     setError("");
     setManualMode(true);
   };
@@ -332,14 +319,10 @@ export default function QRScannerModal({
    * MANUEL KOD GÖNDER
    */
   const handleManualSubmit = () => {
-    const cleanCode =
-      manualCode.trim();
+    const cleanCode = manualCode.trim();
 
     if (!cleanCode) {
-      setError(
-        "Lütfen barkod veya QR kod numarasını girin."
-      );
-
+      setError("Lütfen barkod veya QR kod numarasını girin.");
       return;
     }
 
@@ -348,20 +331,12 @@ export default function QRScannerModal({
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-
       {/* HEADER */}
-
       <header className="bg-gray-900 border-b border-gray-800 px-5 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-white text-xl font-black">
-            {title}
-          </h1>
-
-          <p className="text-gray-500 text-sm mt-1">
-            Vertice Stok
-          </p>
+          <h1 className="text-white text-xl font-black">{title}</h1>
+          <p className="text-gray-500 text-sm mt-1">Vertice Stok</p>
         </div>
-
         <button
           type="button"
           onClick={handleClose}
@@ -372,79 +347,51 @@ export default function QRScannerModal({
       </header>
 
       <main className="flex-1 overflow-y-auto">
-
         {!manualMode ? (
           <>
             {/* KAMERA ALANI */}
-
             <div className="relative bg-black min-h-[320px]">
+              <div id="qr-reader" className="w-full" />
 
-              <div
-                id="qr-reader"
-                className="w-full"
-              />
-
-              {(status === "starting" ||
-                status === "permission") && (
+              {(status === "starting" || status === "permission") && (
                 <div className="absolute inset-0 min-h-[320px] bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
-
                   <div className="w-12 h-12 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-
                   <p className="text-white font-black mt-5">
                     {status === "permission"
                       ? "Kamera izni bekleniyor..."
                       : "Arka kamera açılıyor..."}
                   </p>
-
                   <p className="text-gray-500 text-sm mt-2">
                     Kamera erişimine izin verin
                   </p>
-
                 </div>
               )}
-
             </div>
 
             {/* TARAYICI BİLGİSİ */}
-
             {status === "scanning" && (
               <div className="px-6 py-6 text-center">
-
                 <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-bold">
                   ● Kamera Aktif
                 </div>
-
                 <h2 className="text-white text-xl font-black mt-5">
                   Barkodu kameraya gösterin
                 </h2>
-
                 <p className="text-gray-500 mt-3">
-                  QR kodu veya ürün barkodunu
-                  kameranın ortasında tutun.
+                  QR kodu veya ürün barkodunu kameranın ortasında tutun.
                 </p>
-
                 <p className="text-blue-400 text-sm font-bold mt-3">
                   Algılandığında otomatik okunacaktır.
                 </p>
-
               </div>
             )}
 
             {/* HATA */}
-
             {status === "error" && (
               <div className="p-6">
-
                 <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5">
-
-                  <h3 className="text-red-400 font-black">
-                    Kamera Açılamadı
-                  </h3>
-
-                  <p className="text-red-300 text-sm mt-2 leading-6">
-                    {error}
-                  </p>
-
+                  <h3 className="text-red-400 font-black">Kamera Açılamadı</h3>
+                  <p className="text-red-300 text-sm mt-2 leading-6">{error}</p>
                   <button
                     type="button"
                     onClick={startScanner}
@@ -452,16 +399,12 @@ export default function QRScannerModal({
                   >
                     Kamera İzni İste
                   </button>
-
                 </div>
-
               </div>
             )}
 
             {/* MANUEL GİRİŞ */}
-
             <div className="px-6 pb-8">
-
               <button
                 type="button"
                 onClick={openManualMode}
@@ -469,70 +412,44 @@ export default function QRScannerModal({
               >
                 Kodu Manuel Gir
               </button>
-
             </div>
           </>
         ) : (
           /* MANUEL MOD */
-
           <div className="p-6">
-
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-
-              <h2 className="text-white text-xl font-black">
-                Kodu Manuel Gir
-              </h2>
-
+              <h2 className="text-white text-xl font-black">Kodu Manuel Gir</h2>
               <p className="text-gray-500 text-sm mt-2">
                 Barkod veya QR kod numarasını yazın.
               </p>
-
               <input
                 type="text"
                 inputMode="numeric"
                 value={manualCode}
-                onChange={(event) =>
-                  setManualCode(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setManualCode(event.target.value)}
                 placeholder="Barkod / QR kodu"
                 className="w-full mt-6 bg-gray-950 border border-gray-700 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
                 autoFocus
               />
-
-              {error && (
-                <p className="text-red-400 text-sm mt-3">
-                  {error}
-                </p>
-              )}
-
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
               <button
                 type="button"
-                onClick={
-                  handleManualSubmit
-                }
+                onClick={handleManualSubmit}
                 className="w-full mt-5 bg-blue-600 text-white font-black py-4 rounded-xl"
               >
                 Ürünü Ara
               </button>
-
               <button
                 type="button"
-                onClick={
-                  returnToCamera
-                }
+                onClick={returnToCamera}
                 className="w-full mt-3 bg-gray-800 text-gray-300 font-bold py-4 rounded-xl"
               >
                 Kameraya Dön
               </button>
-
             </div>
-
           </div>
         )}
-
       </main>
     </div>
   );
-          }
+}
