@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import {
   ArrowLeft,
+  Camera,
   CheckCircle2,
   ClipboardCheck,
   Minus,
@@ -23,6 +24,8 @@ import {
   getPublicCollection,
 } from "./StockApp";
 
+import QRScannerModal from "./QRScannerModal";
+
 export default function InventoryView({
   products = [],
   batches = [],
@@ -41,6 +44,14 @@ export default function InventoryView({
 
   const [isSaving, setIsSaving] =
     useState(false);
+
+  /*
+   * SAYIM BARKOD TARAYICI
+   */
+  const [
+    isInventoryScannerOpen,
+    setIsInventoryScannerOpen,
+  ] = useState(false);
 
   /*
    * LOKASYONA GÖRE
@@ -179,7 +190,6 @@ export default function InventoryView({
         [productId]:
           Math.max(
             0,
-
             Number(
               previous[
                 productId
@@ -187,6 +197,99 @@ export default function InventoryView({
             ) - 1
           ),
       })
+    );
+  };
+
+  /*
+   * SAYIM SIRASINDA
+   * BARKOD OKUTULDU
+   */
+  const handleInventoryScan = (
+    decodedText
+  ) => {
+    const cleanCode =
+      String(
+        decodedText || ""
+      ).trim();
+
+    /*
+     * Tarayıcıyı kapat.
+     */
+    setIsInventoryScannerOpen(
+      false
+    );
+
+    if (!cleanCode) {
+      showToast?.(
+        "Geçerli bir barkod okunamadı.",
+        "error"
+      );
+
+      return;
+    }
+
+    /*
+     * Barkoda ait ürünü bul.
+     */
+    const foundProduct =
+      products.find(
+        (product) => {
+          const productCode =
+            String(
+              product.qrNo ||
+                product.barcode ||
+                product.barcodeNo ||
+                ""
+            ).trim();
+
+          return (
+            productCode ===
+            cleanCode
+          );
+        }
+      );
+
+    /*
+     * Ürün kayıtlı değil.
+     */
+    if (!foundProduct) {
+      showToast?.(
+        `Bu barkod sistemde kayıtlı değil: ${cleanCode}`,
+        "error"
+      );
+
+      return;
+    }
+
+    /*
+     * Sayılan adedi +1 artır.
+     */
+    setCounts(
+      (previous) => ({
+        ...previous,
+
+        [foundProduct.id]:
+          Number(
+            previous[
+              foundProduct.id
+            ] || 0
+          ) + 1,
+      })
+    );
+
+    /*
+     * Arama alanına ürünü getir.
+     *
+     * Böylece okutulan ürün
+     * ekranda hemen görünür.
+     */
+    setSearchQuery(
+      foundProduct.name || ""
+    );
+
+    showToast?.(
+      `${foundProduct.name} sayıldı: +1`,
+      "success"
     );
   };
 
@@ -367,16 +470,10 @@ export default function InventoryView({
           "success"
         );
 
-        /*
-         * FORMU TEMİZLE
-         */
         setCounts({});
 
         setSearchQuery("");
 
-        /*
-         * DASHBOARD'A DÖN
-         */
         setTimeout(() => {
           onBack?.();
         }, 800);
@@ -397,6 +494,22 @@ export default function InventoryView({
 
   return (
     <div className="flex flex-col h-full bg-gray-950 text-gray-100">
+
+      {/* SAYIM QR / BARKOD TARAYICI */}
+
+      {isInventoryScannerOpen && (
+        <QRScannerModal
+          title="Sayım İçin Barkod Tara"
+          onClose={() =>
+            setIsInventoryScannerOpen(
+              false
+            )
+          }
+          onScan={
+            handleInventoryScan
+          }
+        />
+      )}
 
       {/* HEADER */}
 
@@ -477,6 +590,24 @@ export default function InventoryView({
             </button>
 
           </div>
+
+          {/* BARKOD TARA */}
+
+          <button
+            type="button"
+            onClick={() =>
+              setIsInventoryScannerOpen(
+                true
+              )
+            }
+            className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
+          >
+            <Camera
+              size={22}
+            />
+
+            QR / Barkod Tara
+          </button>
 
           {/* ÖZET */}
 
@@ -787,7 +918,7 @@ export default function InventoryView({
 
       </main>
 
-      {/* ALT TAMAMLA */}
+      {/* SAYIMI TAMAMLA */}
 
       <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4">
 
