@@ -2077,7 +2077,33 @@ useEffect(() => {
     setCurrentView(
       "product_detail"
     );
+    onPrintLabel={() =>
+  handleOpenPrintCenter(selectedProduct)
+}
   };
+  /*
+ * =========================================
+ * ETİKET MERKEZİ
+ * =========================================
+ */
+{/* ETİKET MERKEZİ */}
+
+{currentView === "print_center" && (
+  <PrintCenterView
+    product={printProduct}
+    products={products}
+    batches={batches}
+    onBack={() => {
+      setPrintProduct(null);
+      setCurrentView("dashboard");
+    }}
+    showToast={showToast}
+  />
+)}
+const handleOpenPrintCenter = (product = null) => {
+  setPrintProduct(product);
+  setCurrentView("print_center");
+};
 
   /*
    * =========================================
@@ -2361,6 +2387,7 @@ if (
               "profile"
             )
           }
+          onOpenPrintCenter={handleOpenPrintCenter} 
         />
       )}
 
