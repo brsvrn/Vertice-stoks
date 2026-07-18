@@ -59,63 +59,36 @@ export default function StockApp() {
    */
 
   const [user, setUser] = useState(null);
-
   const [dbUser, setDbUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  const [isAuthLoading, setIsAuthLoading] =
-    useState(true);
+  const [products, setProducts] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [inventoryCounts, setInventoryCounts] = useState([]);
 
-  const [products, setProducts] =
-    useState([]);
+  const [currentView, setCurrentView] = useState("dashboard");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const [batches, setBatches] =
-    useState([]);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isAddScannerOpen, setIsAddScannerOpen] = useState(false);
 
-  const [transactions, setTransactions] =
-    useState([]);
+  const [scannedBarcodeForAdd, setScannedBarcodeForAdd] =
+    useState("");
 
-  const [inventoryCounts, setInventoryCounts] =
-    useState([]);
+  const [toast, setToast] = useState(null);
 
-  const [currentView, setCurrentView] =
-    useState("dashboard");
+  const [notificationStatus, setNotificationStatus] =
+    useState("unknown");
 
-  const [selectedProduct, setSelectedProduct] =
-    useState(null);
-
-  const [isScannerOpen, setIsScannerOpen] =
+  const [notificationLoading, setNotificationLoading] =
     useState(false);
 
-  const [isAddScannerOpen, setIsAddScannerOpen] =
+  const [readNotificationIds, setReadNotificationIds] =
+    useState([]);
+
+  const [inventoryActionLoading, setInventoryActionLoading] =
     useState(false);
-
-  const [
-    scannedBarcodeForAdd,
-    setScannedBarcodeForAdd,
-  ] = useState("");
-
-  const [toast, setToast] =
-    useState(null);
-
-  const [
-    notificationStatus,
-    setNotificationStatus,
-  ] = useState("unknown");
-
-  const [
-    notificationLoading,
-    setNotificationLoading,
-  ] = useState(false);
-
-  const [
-    readNotificationIds, 
-    setReadNotificationIds, 
-  ] =  useState([]);
-
-  const [
-    inventoryActionLoading,
-    setInventoryActionLoading,
-  ] = useState(false);
 
   /*
    * =========================================
@@ -283,16 +256,11 @@ export default function StockApp() {
       return;
     }
 
-    /*
-     * ÜRÜNLER
-     */
-
     const unsubscribeProducts =
       onSnapshot(
         getPublicCollection(
           "products"
         ),
-
         (snapshot) => {
           const data =
             snapshot.docs.map(
@@ -301,7 +269,6 @@ export default function StockApp() {
               ) => ({
                 id:
                   documentSnapshot.id,
-
                 ...documentSnapshot.data(),
               })
             );
@@ -310,7 +277,6 @@ export default function StockApp() {
             data
           );
         },
-
         (error) => {
           console.error(
             "Ürünler yüklenemedi:",
@@ -319,16 +285,11 @@ export default function StockApp() {
         }
       );
 
-    /*
-     * PARTİLER
-     */
-
     const unsubscribeBatches =
       onSnapshot(
         getPublicCollection(
           "batches"
         ),
-
         (snapshot) => {
           const data =
             snapshot.docs.map(
@@ -337,7 +298,6 @@ export default function StockApp() {
               ) => ({
                 id:
                   documentSnapshot.id,
-
                 ...documentSnapshot.data(),
               })
             );
@@ -346,7 +306,6 @@ export default function StockApp() {
             data
           );
         },
-
         (error) => {
           console.error(
             "Partiler yüklenemedi:",
@@ -355,16 +314,11 @@ export default function StockApp() {
         }
       );
 
-    /*
-     * STOK HAREKETLERİ
-     */
-
     const unsubscribeTransactions =
       onSnapshot(
         getPublicCollection(
           "transactions"
         ),
-
         (snapshot) => {
           const data =
             snapshot.docs.map(
@@ -373,7 +327,6 @@ export default function StockApp() {
               ) => ({
                 id:
                   documentSnapshot.id,
-
                 ...documentSnapshot.data(),
               })
             );
@@ -396,7 +349,6 @@ export default function StockApp() {
             data
           );
         },
-
         (error) => {
           console.error(
             "Hareketler yüklenemedi:",
@@ -405,16 +357,11 @@ export default function StockApp() {
         }
       );
 
-    /*
-     * SAYIM GEÇMİŞİ
-     */
-
     const unsubscribeInventoryCounts =
       onSnapshot(
         getPublicCollection(
           "inventoryCounts"
         ),
-
         (snapshot) => {
           const data =
             snapshot.docs.map(
@@ -423,7 +370,6 @@ export default function StockApp() {
               ) => ({
                 id:
                   documentSnapshot.id,
-
                 ...documentSnapshot.data(),
               })
             );
@@ -446,7 +392,6 @@ export default function StockApp() {
             data
           );
         },
-
         (error) => {
           console.error(
             "Sayım geçmişi yüklenemedi:",
@@ -457,11 +402,8 @@ export default function StockApp() {
 
     return () => {
       unsubscribeProducts();
-
       unsubscribeBatches();
-
       unsubscribeTransactions();
-
       unsubscribeInventoryCounts();
     };
   }, [
@@ -590,65 +532,6 @@ export default function StockApp() {
             "FCM_TOKEN_EMPTY"
           );
         }
-        /*
- * OKUNMAMIŞ BİLDİRİMLER
- */
-const unreadNotifications = useMemo(() => {
-  return activeNotifications.filter(
-    (notification) =>
-      !readNotificationIds.includes(notification.id)
-  );
-}, [activeNotifications, readNotificationIds]);
-
-/*
- * TEK BİLDİRİMİ OKUNDU YAP
- */
-const handleMarkNotificationAsRead = (notificationId) => {
-  setReadNotificationIds((previous) => {
-    if (previous.includes(notificationId)) {
-      return previous;
-    }
-
-    return [...previous, notificationId];
-  });
-};
-
-/*
- * TÜM BİLDİRİMLERİ OKUNDU YAP
- */
-const handleMarkAllNotificationsAsRead = () => {
-  setReadNotificationIds(
-    activeNotifications.map(
-      (notification) => notification.id
-    )
-  );
-
-  showToast(
-    "Tüm bildirimler okundu olarak işaretlendi.",
-    "success"
-  );
-};
-
-/*
- * BİLDİRİMDEN ÜRÜNÜ AÇ
- */
-const handleOpenProductFromNotification = (productId) => {
-  const product = products.find(
-    (item) => item.id === productId
-  );
-
-  if (!product) {
-    showToast(
-      "Bildirimle ilişkili ürün bulunamadı.",
-      "error"
-    );
-
-    return;
-  }
-
-  setSelectedProduct(product);
-  setCurrentView("product_detail");
-};
 
         const deviceReference =
           doc(
@@ -817,7 +700,6 @@ const handleOpenProductFromNotification = (productId) => {
             ),
             user.uid
           ),
-
           userData
         );
 
@@ -882,7 +764,6 @@ const handleOpenProductFromNotification = (productId) => {
                     batch.quantity ||
                       0
                   ),
-
                 0
               );
 
@@ -1126,6 +1007,117 @@ const handleOpenProductFromNotification = (productId) => {
 
   /*
    * =========================================
+   * OKUNMAMIŞ BİLDİRİMLER
+   * =========================================
+   */
+
+  const unreadNotifications =
+    useMemo(() => {
+      return activeNotifications.filter(
+        (
+          notification
+        ) =>
+          !readNotificationIds.includes(
+            notification.id
+          )
+      );
+    }, [
+      activeNotifications,
+      readNotificationIds,
+    ]);
+
+  /*
+   * =========================================
+   * TEK BİLDİRİMİ OKUNDU YAP
+   * =========================================
+   */
+
+  const handleMarkNotificationAsRead =
+    (
+      notificationId
+    ) => {
+      setReadNotificationIds(
+        (
+          previous
+        ) => {
+          if (
+            previous.includes(
+              notificationId
+            )
+          ) {
+            return previous;
+          }
+
+          return [
+            ...previous,
+            notificationId,
+          ];
+        }
+      );
+    };
+
+  /*
+   * =========================================
+   * TÜM BİLDİRİMLERİ OKUNDU YAP
+   * =========================================
+   */
+
+  const handleMarkAllNotificationsAsRead =
+    () => {
+      setReadNotificationIds(
+        activeNotifications.map(
+          (
+            notification
+          ) =>
+            notification.id
+        )
+      );
+
+      showToast(
+        "Tüm bildirimler okundu olarak işaretlendi.",
+        "success"
+      );
+    };
+
+  /*
+   * =========================================
+   * BİLDİRİMDEN ÜRÜN AÇ
+   * =========================================
+   */
+
+  const handleOpenProductFromNotification =
+    (
+      productId
+    ) => {
+      const product =
+        products.find(
+          (
+            item
+          ) =>
+            item.id ===
+            productId
+        );
+
+      if (!product) {
+        showToast(
+          "Bildirimle ilişkili ürün bulunamadı.",
+          "error"
+        );
+
+        return;
+      }
+
+      setSelectedProduct(
+        product
+      );
+
+      setCurrentView(
+        "product_detail"
+      );
+    };
+
+  /*
+   * =========================================
    * SAYIM DURUMU
    * =========================================
    */
@@ -1192,7 +1184,6 @@ const handleOpenProductFromNotification = (productId) => {
             batch.quantity ||
               0
           ),
-
         0
       );
   };
@@ -1213,10 +1204,6 @@ const handleOpenProductFromNotification = (productId) => {
         return;
       }
 
-      /*
-       * SADECE ADMIN
-       */
-
       if (
         dbUser?.role !==
         "admin"
@@ -1228,10 +1215,6 @@ const handleOpenProductFromNotification = (productId) => {
 
         return;
       }
-
-      /*
-       * SAYIM KONTROLÜ
-       */
 
       if (
         !inventory?.id
@@ -1286,12 +1269,7 @@ const handleOpenProductFromNotification = (productId) => {
       }
 
       /*
-       * =====================================
-       * STOK DEĞİŞİKLİĞİ KONTROLÜ
-       *
-       * Sayım yapıldıktan sonra stok değiştiyse
-       * eski sayımı uygulamıyoruz.
-       * =====================================
+       * SAYIMDAN SONRA STOK DEĞİŞMİŞ Mİ?
        */
 
       const changedItems =
@@ -1330,16 +1308,11 @@ const handleOpenProductFromNotification = (productId) => {
           `${firstChanged.productName} stoğu sayımdan sonra değişmiş. ` +
             `Sayım anında: ${firstChanged.systemStock}, ` +
             `şimdi: ${currentStock}. Yeni sayım yapmalısınız.`,
-
           "error"
         );
 
         return;
       }
-
-      /*
-       * KULLANICI ONAYI
-       */
 
       if (
         typeof window !==
@@ -1371,12 +1344,6 @@ const handleOpenProductFromNotification = (productId) => {
             inventory.id
           );
 
-        /*
-         * =====================================
-         * HER FARKLI ÜRÜNÜ UYGULA
-         * =====================================
-         */
-
         for (
           const item
           of differenceItems
@@ -1388,11 +1355,7 @@ const handleOpenProductFromNotification = (productId) => {
             );
 
           /*
-           * =================================
-           * EKSİK STOK
-           *
-           * FEFO ile düş.
-           * =================================
+           * EKSİK STOK - FEFO
            */
 
           if (
@@ -1480,7 +1443,6 @@ const handleOpenProductFromNotification = (productId) => {
                   ),
                   batchItem.id
                 ),
-
                 {
                   quantity:
                     newQuantity,
@@ -1494,10 +1456,6 @@ const handleOpenProductFromNotification = (productId) => {
                 removeQuantity;
             }
 
-            /*
-             * Güvenlik kontrolü.
-             */
-
             if (
               quantityToRemove >
               0
@@ -1509,9 +1467,7 @@ const handleOpenProductFromNotification = (productId) => {
           }
 
           /*
-           * =================================
            * FAZLA STOK
-           * =================================
            */
 
           if (
@@ -1567,7 +1523,6 @@ const handleOpenProductFromNotification = (productId) => {
                   ),
                   targetBatch.id
                 ),
-
                 {
                   quantity:
                     Number(
@@ -1590,7 +1545,6 @@ const handleOpenProductFromNotification = (productId) => {
 
               firestoreBatch.set(
                 newBatchReference,
-
                 {
                   productId:
                     item.productId,
@@ -1629,9 +1583,7 @@ const handleOpenProductFromNotification = (productId) => {
           }
 
           /*
-           * =================================
            * TRANSACTION
-           * =================================
            */
 
           const transactionReference =
@@ -1643,7 +1595,6 @@ const handleOpenProductFromNotification = (productId) => {
 
           firestoreBatch.set(
             transactionReference,
-
             {
               type:
                 "INVENTORY_ADJUSTMENT",
@@ -1724,15 +1675,8 @@ const handleOpenProductFromNotification = (productId) => {
           );
         }
 
-        /*
-         * =====================================
-         * SAYIM KAYDININ DURUMUNU GÜNCELLE
-         * =====================================
-         */
-
         firestoreBatch.update(
           inventoryReference,
-
           {
             status:
               "APPLIED",
@@ -1755,10 +1699,6 @@ const handleOpenProductFromNotification = (productId) => {
               now,
           }
         );
-
-        /*
-         * ATOMİK COMMIT
-         */
 
         await firestoreBatch.commit();
 
@@ -1877,7 +1817,6 @@ const handleOpenProductFromNotification = (productId) => {
             ),
             inventory.id
           ),
-
           {
             status:
               "REJECTED",
@@ -2090,7 +2029,7 @@ const handleOpenProductFromNotification = (productId) => {
 
   /*
    * =========================================
-   * ÜRÜN DETAYI
+   * ÜRÜN DETAY
    * =========================================
    */
 
@@ -2327,7 +2266,6 @@ const handleOpenProductFromNotification = (productId) => {
           }
           notifications={
             unreadNotifications
-          } 
           }
           onOpenProduct={
             handleOpenProduct
@@ -2352,15 +2290,41 @@ const handleOpenProductFromNotification = (productId) => {
               "inventory_history"
             )
           }
-          onOpenNotifications={() => {
-  setCurrentView("notifications");
-}} 
-            );
-          }}
+          onOpenNotifications={() =>
+            setCurrentView(
+              "notifications"
+            )
+          }
           onOpenProfile={() =>
             setCurrentView(
               "profile"
             )
+          }
+        />
+      )}
+
+      {/* BİLDİRİMLER */}
+
+      {currentView ===
+        "notifications" && (
+        <NotificationsView
+          notifications={
+            activeNotifications
+          }
+          readNotificationIds={
+            readNotificationIds
+          }
+          onMarkAsRead={
+            handleMarkNotificationAsRead
+          }
+          onMarkAllAsRead={
+            handleMarkAllNotificationsAsRead
+          }
+          onOpenProduct={
+            handleOpenProductFromNotification
+          }
+          onBack={
+            handleBackToDashboard
           }
         />
       )}
