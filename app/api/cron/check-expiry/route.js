@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import {
   getAdminDb,
   getAdminMessaging,
@@ -9,7 +10,13 @@ export const dynamic = "force-dynamic";
 
 const APP_ID = "G-ZXHYS9KH9T";
 
-function getDataCollection(db, collectionName) {
+/*
+ * FIRESTORE COLLECTION
+ */
+function getDataCollection(
+  db,
+  collectionName
+) {
   return db
     .collection("artifacts")
     .doc(APP_ID)
@@ -18,20 +25,26 @@ function getDataCollection(db, collectionName) {
     .collection(collectionName);
 }
 
+/*
+ * ANA CRON ENDPOINT
+ */
 export async function GET(request) {
   try {
     /*
      * CRON GÜVENLİK KONTROLÜ
      */
     const authHeader =
-      request.headers.get("authorization");
+      request.headers.get(
+        "authorization"
+      );
 
     const cronSecret =
       process.env.CRON_SECRET;
 
     if (
       cronSecret &&
-      authHeader !== `Bearer ${cronSecret}`
+      authHeader !==
+        `Bearer ${cronSecret}`
     ) {
       return NextResponse.json(
         {
@@ -44,11 +57,16 @@ export async function GET(request) {
       );
     }
 
+    /*
+     * FIREBASE ADMIN
+     */
     const db = getAdminDb();
-    const messaging = getAdminMessaging();
+
+    const messaging =
+      getAdminMessaging();
 
     /*
-     * FIRESTORE VERİLERİNİ AL
+     * VERİLERİ AL
      */
     const [
       productsSnapshot,
@@ -71,29 +89,37 @@ export async function GET(request) {
       ).get(),
     ]);
 
+    /*
+     * ÜRÜNLER
+     */
     const products =
       productsSnapshot.docs.map(
-        (doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })
-      );
-
-    const batches =
-      batchesSnapshot.docs.map(
-        (doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        (document) => ({
+          id: document.id,
+          ...document.data(),
         })
       );
 
     /*
-     * SADECE BİLDİRİMLERİ AÇIK
-     * CİHAZLARIN TOKENLARINI AL
+     * PARTİLER
+     */
+    const batches =
+      batchesSnapshot.docs.map(
+        (document) => ({
+          id: document.id,
+          ...document.data(),
+        })
+      );
+
+    /*
+     * AKTİF CİHAZ TOKENLARI
      */
     const tokens =
       devicesSnapshot.docs
-        .map((doc) => doc.data())
+        .map(
+          (document) =>
+            document.data()
+        )
         .filter(
           (device) =>
             device.notificationsEnabled ===
@@ -101,28 +127,44 @@ export async function GET(request) {
             device.token
         )
         .map(
-          (device) => device.token
+          (device) =>
+            device.token
         );
 
+    /*
+     * AYNI TOKEN VARSA
+     * TEK TOKEN OLARAK KULLAN
+     */
     const uniqueTokens = [
       ...new Set(tokens),
     ];
 
+    /*
+     * AKTİF CİHAZ YOK
+     */
     if (
       uniqueTokens.length === 0
     ) {
       return NextResponse.json({
         success: true,
+
         message:
           "Bildirim gönderilecek aktif cihaz bulunamadı.",
+
         notifications: 0,
+
+        devices: 0,
       });
     }
 
+    /*
+     * GÖNDERİLECEK
+     * BİLDİRİMLER
+     */
     const notifications = [];
 
     /*
-     * TARİH HESABI
+     * BUGÜN
      */
     const today = new Date();
 
@@ -134,14 +176,22 @@ export async function GET(request) {
     );
 
     /*
+     * =====================================
      * SKT KONTROLÜ
+     * =====================================
      */
-    for (const batch of batches) {
+    for (
+      const batch of batches
+    ) {
       const quantity =
         Number(
           batch.quantity || 0
         );
 
+      /*
+       * STOK YOKSA
+       * SKT BİLDİRİMİ GÖNDERME
+       */
       if (
         quantity <= 0 ||
         !batch.expiryDate
@@ -149,11 +199,17 @@ export async function GET(request) {
         continue;
       }
 
+      /*
+       * SKT TARİHİ
+       */
       const expiry =
         new Date(
           batch.expiryDate
         );
 
+      /*
+       * GEÇERSİZ TARİH
+       */
       if (
         Number.isNaN(
           expiry.getTime()
@@ -169,6 +225,9 @@ export async function GET(request) {
         0
       );
 
+      /*
+       * KAÇ GÜN KALDI
+       */
       const difference =
         expiry.getTime() -
         today.getTime();
@@ -184,6 +243,9 @@ export async function GET(request) {
             )
         );
 
+      /*
+       * ÜRÜNÜ BUL
+       */
       const product =
         products.find(
           (item) =>
@@ -198,7 +260,9 @@ export async function GET(request) {
       /*
        * SKT GEÇTİ
        */
-      if (daysLeft < 0) {
+      if (
+        daysLeft < 0
+      ) {
         notifications.push({
           id:
             `expired-${batch.id}`,
@@ -208,8 +272,11 @@ export async function GET(request) {
 
           body:
             `${productName} - ` +
-            `Parti #${batch.batchNo || "-"} ` +
-            `ürününün son kullanma tarihi geçti.`,
+            `Parti #${
+              batch.batchNo ||
+              "-"
+            } ürününün ` +
+            `son kullanma tarihi geçti.`,
 
           batchId:
             batch.id,
@@ -227,7 +294,9 @@ export async function GET(request) {
       /*
        * SKT BUGÜN
        */
-      if (daysLeft === 0) {
+      if (
+        daysLeft === 0
+      ) {
         notifications.push({
           id:
             `expiry-today-${batch.id}`,
@@ -237,8 +306,11 @@ export async function GET(request) {
 
           body:
             `${productName} - ` +
-            `Parti #${batch.batchNo || "-"} ` +
-            `ürününün son kullanma tarihi bugün.`,
+            `Parti #${
+              batch.batchNo ||
+              "-"
+            } ürününün ` +
+            `son kullanma tarihi bugün.`,
 
           batchId:
             batch.id,
@@ -254,9 +326,12 @@ export async function GET(request) {
       }
 
       /*
-       * 3 GÜN KALDI
+       * SKT'YE
+       * 3 GÜN VEYA DAHA AZ
        */
-      if (daysLeft <= 3) {
+      if (
+        daysLeft <= 3
+      ) {
         notifications.push({
           id:
             `expiry-warning-${batch.id}`,
@@ -266,8 +341,11 @@ export async function GET(request) {
 
           body:
             `${productName} - ` +
-            `Parti #${batch.batchNo || "-"} ` +
-            `için son kullanma tarihine ` +
+            `Parti #${
+              batch.batchNo ||
+              "-"
+            } için ` +
+            `son kullanma tarihine ` +
             `${daysLeft} gün kaldı.`,
 
           batchId:
@@ -282,23 +360,124 @@ export async function GET(request) {
       }
     }
 
+    /*
+     * =====================================
+     * KRİTİK STOK KONTROLÜ
+     * =====================================
+     */
+    for (
+      const product
+      of products
+    ) {
+      /*
+       * ÜRÜNE AİT
+       * TÜM PARTİLERİN STOKLARINI TOPLA
+       */
+      const totalStock =
+        batches
+          .filter(
+            (batch) =>
+              batch.productId ===
+              product.id
+          )
+          .reduce(
+            (
+              total,
+              batch
+            ) =>
+              total +
+              Number(
+                batch.quantity ||
+                  0
+              ),
+            0
+          );
+
+      /*
+       * MİNİMUM STOK
+       */
+      const minimumStock =
+        Number(
+          product.minStock ||
+            0
+        );
+
+      /*
+       * minStock TANIMLANMAMIŞSA
+       * KRİTİK STOK KONTROLÜ YAPMA
+       */
+      if (
+        minimumStock <= 0
+      ) {
+        continue;
+      }
+
+      /*
+       * KRİTİK STOK
+       */
+      if (
+        totalStock <=
+        minimumStock
+      ) {
+        notifications.push({
+          id:
+            `critical-stock-${product.id}`,
+
+          title:
+            "🚨 Kritik Stok",
+
+          body:
+            `${
+              product.name ||
+              "Bilinmeyen Ürün"
+            } kritik stok seviyesinde. ` +
+            `Mevcut stok: ${totalStock}. ` +
+            `Minimum stok: ${minimumStock}.`,
+
+          productId:
+            product.id,
+
+          batchId:
+            "",
+
+          type:
+            "CRITICAL_STOCK",
+        });
+      }
+    }
+
+    /*
+     * BİLDİRİM YOK
+     */
     if (
       notifications.length === 0
     ) {
       return NextResponse.json({
         success: true,
+
         message:
-          "Gönderilecek SKT bildirimi bulunamadı.",
+          "Gönderilecek bildirim bulunamadı.",
+
         notifications: 0,
+
+        devices:
+          uniqueTokens.length,
       });
     }
 
     /*
+     * =====================================
      * PUSH BİLDİRİMLERİNİ GÖNDER
+     * =====================================
      */
     let successCount = 0;
+
     let failureCount = 0;
 
+    /*
+     * HER BİLDİRİMİ
+     * AKTİF CİHAZLARA GÖNDER
+     */
     for (
       const notification
       of notifications
@@ -318,6 +497,9 @@ export async function GET(request) {
             },
 
             data: {
+              notificationId:
+                notification.id,
+
               type:
                 notification.type,
 
@@ -332,6 +514,9 @@ export async function GET(request) {
                   notification.batchId ||
                     ""
                 ),
+
+              url:
+                "/",
             },
 
             webpush: {
@@ -341,10 +526,14 @@ export async function GET(request) {
 
                 badge:
                   "/icon-192.png",
+
+                tag:
+                  notification.id,
               },
 
               fcmOptions: {
-                link: "/",
+                link:
+                  "/",
               },
             },
           });
@@ -356,11 +545,14 @@ export async function GET(request) {
         response.failureCount;
     }
 
+    /*
+     * SONUÇ
+     */
     return NextResponse.json({
       success: true,
 
       message:
-        "SKT kontrolü tamamlandı.",
+        "Otomatik stok ve SKT kontrolü tamamlandı.",
 
       detectedNotifications:
         notifications.length,
@@ -373,8 +565,11 @@ export async function GET(request) {
       failureCount,
     });
   } catch (error) {
+    /*
+     * HATA
+     */
     console.error(
-      "SKT Cron hatası:",
+      "Vertice Stok Cron hatası:",
       error
     );
 
@@ -391,4 +586,4 @@ export async function GET(request) {
       }
     );
   }
-  }
+        }
