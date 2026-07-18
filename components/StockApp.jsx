@@ -16,6 +16,8 @@ import {
   setDoc,
 } from "firebase/firestore";
 
+import InventoryView from "./InventoryView";
+
 import { auth, db, appId } from "../lib/firebase";
 
 import {
