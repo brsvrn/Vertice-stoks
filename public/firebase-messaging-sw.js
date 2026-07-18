@@ -8,14 +8,6 @@ importScripts(
   "https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js"
 );
 
-/*
- * BURADAKİ DEĞERLERİ
- * KENDİ FIREBASE PROJENDEN DOLDURACAĞIZ.
- *
- * Firebase Console:
- * Project Settings > General > Your apps > Web app
- */
-
 firebase.initializeApp({
   apiKey: "FIREBASE_API_KEY",
   authDomain: "FIREBASE_AUTH_DOMAIN",
@@ -28,68 +20,22 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 /*
- * UYGULAMA ARKA PLANDA VEYA KAPALIYKEN
- * GELEN FCM MESAJINI YAKALA
+ * FCM MESAJLARI
+ *
+ * Sunucu mesajı "notification" alanı ile gönderdiği için
+ * tarayıcı bildirimi otomatik olarak gösterir.
+ *
+ * Burada showNotification() ÇAĞRILMAZ.
+ * Böylece aynı bildirimin iki kez görünmesi engellenir.
  */
 messaging.onBackgroundMessage((payload) => {
   console.log(
-    "[firebase-messaging-sw.js] Arka plan bildirimi:",
+    "[firebase-messaging-sw.js] Arka plan FCM mesajı:",
     payload
   );
 
-  const notificationTitle =
-    payload.notification?.title ||
-    payload.data?.title ||
-    "Vertice Stok";
-
-  const notificationBody =
-    payload.notification?.body ||
-    payload.data?.body ||
-    "Yeni bir stok bildiriminiz var.";
-
-  const notificationOptions = {
-    body: notificationBody,
-
-    icon: "/icon-192.png",
-
-    badge: "/icon-192.png",
-
-    tag:
-      payload.data?.notificationId ||
-      "vertice-stok-notification",
-
-    renotify: true,
-
-    requireInteraction:
-      payload.data?.priority === "critical",
-
-    vibrate: [
-      300,
-      100,
-      300,
-      100,
-      500
-    ],
-
-    data: {
-      url:
-        payload.data?.url ||
-        "/",
-
-      productId:
-        payload.data?.productId ||
-        "",
-
-      type:
-        payload.data?.type ||
-        "GENERAL"
-    }
-  };
-
-  return self.registration.showNotification(
-    notificationTitle,
-    notificationOptions
-  );
+  // Bildirimi manuel olarak göstermiyoruz.
+  // FCM notification payload'ını otomatik gösterecek.
 });
 
 /*
@@ -112,25 +58,13 @@ self.addEventListener(
           includeUncontrolled: true
         })
         .then((clientList) => {
-          /*
-           * VERTICE STOK ZATEN AÇIKSA
-           * O PENCEREYİ ÖNE GETİR
-           */
           for (const client of clientList) {
-            if (
-              "focus" in client
-            ) {
+            if ("focus" in client) {
               return client.focus();
             }
           }
 
-          /*
-           * UYGULAMA AÇIK DEĞİLSE
-           * YENİ PENCEREDE AÇ
-           */
-          if (
-            clients.openWindow
-          ) {
+          if (clients.openWindow) {
             return clients.openWindow(
               targetUrl
             );
