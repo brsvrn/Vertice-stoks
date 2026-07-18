@@ -34,7 +34,7 @@ import InventoryView from "./InventoryView";
 import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 import PermissionsSetupView from "./PermissionsSetupView";
-
+import PrintCenterView from "./PrintCenterView";
 /*
  * =========================================
  * PUBLIC FIRESTORE COLLECTION
@@ -69,6 +69,7 @@ export default function StockApp() {
   const [inventoryCounts, setInventoryCounts] = useState([]);
 
   const [currentView, setCurrentView] = useState("dashboard");
+  const [printProduct, setPrintProduct] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
