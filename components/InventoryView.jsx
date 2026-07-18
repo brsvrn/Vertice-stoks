@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import {
   ArrowLeft,
@@ -14,11 +17,18 @@ import {
   Warehouse,
   Wine,
   X,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
   addDoc,
+  doc,
+  writeBatch,
 } from "firebase/firestore";
+
+import {
+  db,
+} from "../lib/firebase";
 
 import {
   getPublicCollection,
@@ -36,27 +46,40 @@ export default function InventoryView({
   const [location, setLocation] =
     useState("DEPO");
 
-  const [searchQuery, setSearchQuery] =
-    useState("");
+  const [
+    searchQuery,
+    setSearchQuery,
+  ] = useState("");
 
   const [counts, setCounts] =
     useState({});
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-  /*
-   * SAYIM BARKOD TARAYICI
-   */
+  const [
+    isApplying,
+    setIsApplying,
+  ] = useState(false);
+
   const [
     isInventoryScannerOpen,
     setIsInventoryScannerOpen,
   ] = useState(false);
 
+  const [
+    showReview,
+    setShowReview,
+  ] = useState(false);
+
   /*
-   * LOKASYONA GÖRE
-   * ÜRÜNÜN SİSTEM STOĞU
+   * =====================================
+   * SİSTEM STOĞU
+   * =====================================
    */
+
   const getSystemStock = (
     productId
   ) => {
@@ -73,15 +96,19 @@ export default function InventoryView({
         (total, batch) =>
           total +
           Number(
-            batch.quantity || 0
+            batch.quantity ||
+              0
           ),
         0
       );
   };
 
   /*
+   * =====================================
    * ARAMA
+   * =====================================
    */
+
   const filteredProducts =
     useMemo(() => {
       const query =
@@ -99,12 +126,13 @@ export default function InventoryView({
         (product) => {
           const name =
             String(
-              product.name || ""
+              product.name ||
+                ""
             ).toLocaleLowerCase(
               "tr-TR"
             );
 
-          const qrNo =
+          const code =
             String(
               product.qrNo ||
                 product.barcode ||
@@ -123,9 +151,15 @@ export default function InventoryView({
             );
 
           return (
-            name.includes(query) ||
-            qrNo.includes(query) ||
-            category.includes(query)
+            name.includes(
+              query
+            ) ||
+            code.includes(
+              query
+            ) ||
+            category.includes(
+              query
+            )
           );
         }
       );
@@ -135,8 +169,11 @@ export default function InventoryView({
     ]);
 
   /*
-   * SAYILAN ADEDİ GÜNCELLE
+   * =====================================
+   * SAYIM DEĞİŞTİR
+   * =====================================
    */
+
   const updateCount = (
     productId,
     value
@@ -157,9 +194,6 @@ export default function InventoryView({
     );
   };
 
-  /*
-   * +1
-   */
   const increaseCount = (
     productId
   ) => {
@@ -177,9 +211,6 @@ export default function InventoryView({
     );
   };
 
-  /*
-   * -1
-   */
   const decreaseCount = (
     productId
   ) => {
@@ -190,6 +221,7 @@ export default function InventoryView({
         [productId]:
           Math.max(
             0,
+
             Number(
               previous[
                 productId
@@ -201,9 +233,11 @@ export default function InventoryView({
   };
 
   /*
-   * SAYIM SIRASINDA
-   * BARKOD OKUTULDU
+   * =====================================
+   * BARKOD SAYIM
+   * =====================================
    */
+
   const handleInventoryScan = (
     decodedText
   ) => {
@@ -212,9 +246,6 @@ export default function InventoryView({
         decodedText || ""
       ).trim();
 
-    /*
-     * Tarayıcıyı kapat.
-     */
     setIsInventoryScannerOpen(
       false
     );
@@ -228,9 +259,6 @@ export default function InventoryView({
       return;
     }
 
-    /*
-     * Barkoda ait ürünü bul.
-     */
     const foundProduct =
       products.find(
         (product) => {
@@ -249,9 +277,6 @@ export default function InventoryView({
         }
       );
 
-    /*
-     * Ürün kayıtlı değil.
-     */
     if (!foundProduct) {
       showToast?.(
         `Bu barkod sistemde kayıtlı değil: ${cleanCode}`,
@@ -261,9 +286,6 @@ export default function InventoryView({
       return;
     }
 
-    /*
-     * Sayılan adedi +1 artır.
-     */
     setCounts(
       (previous) => ({
         ...previous,
@@ -277,14 +299,9 @@ export default function InventoryView({
       })
     );
 
-    /*
-     * Arama alanına ürünü getir.
-     *
-     * Böylece okutulan ürün
-     * ekranda hemen görünür.
-     */
     setSearchQuery(
-      foundProduct.name || ""
+      foundProduct.name ||
+        ""
     );
 
     showToast?.(
@@ -294,53 +311,58 @@ export default function InventoryView({
   };
 
   /*
-   * SAYILAN ÜRÜN SAYISI
+   * =====================================
+   * SAYIM KALEMLERİ
+   * =====================================
    */
-  const countedProducts =
-    useMemo(() => {
-      return Object.keys(
-        counts
-      ).filter(
-        (productId) =>
-          counts[
-            productId
-          ] !== undefined
-      ).length;
-    }, [counts]);
 
-  /*
-   * FARK OLAN ÜRÜNLER
-   */
-  const differenceCount =
+  const inventoryItems =
     useMemo(() => {
-      return products.filter(
-        (product) => {
-          if (
+      return products
+        .filter(
+          (product) =>
             counts[
               product.id
-            ] === undefined
-          ) {
-            return false;
-          }
-
-          const systemStock =
-            getSystemStock(
-              product.id
-            );
-
-          const countedStock =
-            Number(
-              counts[
+            ] !== undefined
+        )
+        .map(
+          (product) => {
+            const systemStock =
+              getSystemStock(
                 product.id
-              ]
-            );
+              );
 
-          return (
-            countedStock !==
-            systemStock
-          );
-        }
-      ).length;
+            const countedStock =
+              Number(
+                counts[
+                  product.id
+                ] || 0
+              );
+
+            return {
+              productId:
+                product.id,
+
+              productName:
+                product.name ||
+                "",
+
+              qrNo:
+                product.qrNo ||
+                product.barcode ||
+                product.barcodeNo ||
+                "",
+
+              systemStock,
+
+              countedStock,
+
+              difference:
+                countedStock -
+                systemStock,
+            };
+          }
+        );
     }, [
       products,
       batches,
@@ -348,9 +370,31 @@ export default function InventoryView({
       location,
     ]);
 
+  const countedProducts =
+    inventoryItems.length;
+
+  const differenceItems =
+    useMemo(() => {
+      return inventoryItems.filter(
+        (item) =>
+          item.difference !==
+          0
+      );
+    }, [
+      inventoryItems,
+    ]);
+
+  const differenceCount =
+    differenceItems.length;
+
   /*
+   * =====================================
    * SAYIMI TAMAMLA
+   *
+   * Önce fark kontrol ekranı açılır.
+   * =====================================
    */
+
   const handleCompleteInventory =
     async () => {
       if (
@@ -364,63 +408,25 @@ export default function InventoryView({
         return;
       }
 
+      /*
+       * Fark varsa önce
+       * inceleme ekranını aç.
+       */
+      if (
+        differenceCount > 0
+      ) {
+        setShowReview(true);
+
+        return;
+      }
+
+      /*
+       * Fark yoksa direkt
+       * sayım kaydı oluştur.
+       */
       try {
         setIsSaving(true);
 
-        /*
-         * SAYIM KALEMLERİ
-         */
-        const items =
-          products
-            .filter(
-              (product) =>
-                counts[
-                  product.id
-                ] !== undefined
-            )
-            .map(
-              (product) => {
-                const systemStock =
-                  getSystemStock(
-                    product.id
-                  );
-
-                const countedStock =
-                  Number(
-                    counts[
-                      product.id
-                    ] || 0
-                  );
-
-                return {
-                  productId:
-                    product.id,
-
-                  productName:
-                    product.name ||
-                    "",
-
-                  qrNo:
-                    product.qrNo ||
-                    product.barcode ||
-                    product.barcodeNo ||
-                    "",
-
-                  systemStock,
-
-                  countedStock,
-
-                  difference:
-                    countedStock -
-                    systemStock,
-                };
-              }
-            );
-
-        /*
-         * FIRESTORE'A
-         * SAYIM RAPORU KAYDET
-         */
         await addDoc(
           getPublicCollection(
             "inventoryCounts"
@@ -430,6 +436,9 @@ export default function InventoryView({
 
             status:
               "COMPLETED",
+
+            applied:
+              false,
 
             countedByUid:
               dbUser?.uid ||
@@ -444,16 +453,13 @@ export default function InventoryView({
               "staff",
 
             totalProducts:
-              items.length,
+              inventoryItems.length,
 
             differenceProducts:
-              items.filter(
-                (item) =>
-                  item.difference !==
-                  0
-              ).length,
+              0,
 
-            items,
+            items:
+              inventoryItems,
 
             createdAt:
               new Date()
@@ -466,7 +472,7 @@ export default function InventoryView({
         );
 
         showToast?.(
-          "Stok sayımı başarıyla kaydedildi.",
+          "Sayım tamamlandı. Stok farkı bulunmadı.",
           "success"
         );
 
@@ -479,7 +485,7 @@ export default function InventoryView({
         }, 800);
       } catch (error) {
         console.error(
-          "Sayım kaydetme hatası:",
+          "Sayım kayıt hatası:",
           error
         );
 
@@ -492,10 +498,820 @@ export default function InventoryView({
       }
     };
 
+  /*
+   * =====================================
+   * FARKLI SAYIMI SADECE RAPOR OLARAK
+   * KAYDET
+   *
+   * Stok değişmez.
+   * =====================================
+   */
+
+  const handleSaveWithoutApplying =
+    async () => {
+      try {
+        setIsSaving(true);
+
+        await addDoc(
+          getPublicCollection(
+            "inventoryCounts"
+          ),
+          {
+            location,
+
+            status:
+              "COMPLETED",
+
+            applied:
+              false,
+
+            countedByUid:
+              dbUser?.uid ||
+              "",
+
+            countedByName:
+              dbUser?.name ||
+              "Bilinmeyen Kullanıcı",
+
+            countedByRole:
+              dbUser?.role ||
+              "staff",
+
+            totalProducts:
+              inventoryItems.length,
+
+            differenceProducts:
+              differenceItems.length,
+
+            items:
+              inventoryItems,
+
+            createdAt:
+              new Date()
+                .toISOString(),
+
+            completedAt:
+              new Date()
+                .toISOString(),
+          }
+        );
+
+        showToast?.(
+          "Sayım kaydedildi. Stok farkları uygulanmadı.",
+          "success"
+        );
+
+        setShowReview(false);
+
+        setCounts({});
+
+        setSearchQuery("");
+
+        setTimeout(() => {
+          onBack?.();
+        }, 800);
+      } catch (error) {
+        console.error(
+          "Sayım kayıt hatası:",
+          error
+        );
+
+        showToast?.(
+          "Sayım kaydedilemedi.",
+          "error"
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+  /*
+   * =====================================
+   * SAYIM FARKLARINI STOĞA UYGULA
+   * =====================================
+   */
+
+  const handleApplyDifferences =
+    async () => {
+      /*
+       * SADECE YÖNETİCİ
+       */
+      if (
+        dbUser?.role !==
+        "admin"
+      ) {
+        showToast?.(
+          "Stok farklarını yalnızca yönetici uygulayabilir.",
+          "error"
+        );
+
+        return;
+      }
+
+      if (
+        differenceItems.length ===
+        0
+      ) {
+        showToast?.(
+          "Uygulanacak stok farkı bulunamadı.",
+          "error"
+        );
+
+        return;
+      }
+
+      try {
+        setIsApplying(true);
+
+        /*
+         * FIRESTORE ATOMİK BATCH
+         */
+        const firestoreBatch =
+          writeBatch(db);
+
+        const now =
+          new Date()
+            .toISOString();
+
+        /*
+         * SAYIM KAYDI İÇİN
+         * ÖNCEDEN ID OLUŞTUR
+         */
+        const inventoryRef =
+          doc(
+            getPublicCollection(
+              "inventoryCounts"
+            )
+          );
+
+        /*
+         * HER FARKLI ÜRÜN
+         */
+        for (
+          const item
+          of differenceItems
+        ) {
+          const difference =
+            Number(
+              item.difference
+            );
+
+          /*
+           * =================================
+           * EKSİK STOK
+           *
+           * Sayılan stok sistemden düşük.
+           *
+           * FEFO:
+           * SKT'si en yakın partiden
+           * başlayarak düş.
+           * =================================
+           */
+
+          if (
+            difference < 0
+          ) {
+            let quantityToRemove =
+              Math.abs(
+                difference
+              );
+
+            /*
+             * Seçili lokasyondaki
+             * stoklu partiler.
+             */
+            const productBatches =
+              batches
+                .filter(
+                  (batch) =>
+                    batch.productId ===
+                      item.productId &&
+                    (batch.location ||
+                      "DEPO") ===
+                      location &&
+                    Number(
+                      batch.quantity ||
+                        0
+                    ) > 0
+                )
+                .sort(
+                  (
+                    first,
+                    second
+                  ) => {
+                    /*
+                     * SKT olmayan partiler
+                     * en sona gider.
+                     */
+
+                    const firstDate =
+                      first.expiryDate
+                        ? new Date(
+                            first.expiryDate
+                          ).getTime()
+                        : Number
+                            .MAX_SAFE_INTEGER;
+
+                    const secondDate =
+                      second.expiryDate
+                        ? new Date(
+                            second.expiryDate
+                          ).getTime()
+                        : Number
+                            .MAX_SAFE_INTEGER;
+
+                    return (
+                      firstDate -
+                      secondDate
+                    );
+                  }
+                );
+
+            for (
+              const batchItem
+              of productBatches
+            ) {
+              if (
+                quantityToRemove <=
+                0
+              ) {
+                break;
+              }
+
+              const currentQuantity =
+                Number(
+                  batchItem.quantity ||
+                    0
+                );
+
+              const removeQuantity =
+                Math.min(
+                  currentQuantity,
+                  quantityToRemove
+                );
+
+              const newQuantity =
+                currentQuantity -
+                removeQuantity;
+
+              const batchReference =
+                doc(
+                  getPublicCollection(
+                    "batches"
+                  ),
+                  batchItem.id
+                );
+
+              firestoreBatch.update(
+                batchReference,
+                {
+                  quantity:
+                    newQuantity,
+
+                  updatedAt:
+                    now,
+                }
+              );
+
+              quantityToRemove -=
+                removeQuantity;
+            }
+          }
+
+          /*
+           * =================================
+           * FAZLA STOK
+           *
+           * Fiziksel stok sistemden yüksek.
+           * =================================
+           */
+
+          if (
+            difference > 0
+          ) {
+            /*
+             * Aynı ürün ve lokasyonda
+             * mevcut parti bul.
+             *
+             * En son oluşturulan /
+             * en güncel parti tercih edilir.
+             */
+            const productBatches =
+              batches
+                .filter(
+                  (batch) =>
+                    batch.productId ===
+                      item.productId &&
+                    (batch.location ||
+                      "DEPO") ===
+                      location
+                )
+                .sort(
+                  (
+                    first,
+                    second
+                  ) => {
+                    const firstDate =
+                      new Date(
+                        first.createdAt ||
+                          first.date ||
+                          0
+                      ).getTime();
+
+                    const secondDate =
+                      new Date(
+                        second.createdAt ||
+                          second.date ||
+                          0
+                      ).getTime();
+
+                    return (
+                      secondDate -
+                      firstDate
+                    );
+                  }
+                );
+
+            const targetBatch =
+              productBatches[0];
+
+            /*
+             * Mevcut parti varsa
+             * stoğa ekle.
+             */
+            if (
+              targetBatch
+            ) {
+              const batchReference =
+                doc(
+                  getPublicCollection(
+                    "batches"
+                  ),
+                  targetBatch.id
+                );
+
+              firestoreBatch.update(
+                batchReference,
+                {
+                  quantity:
+                    Number(
+                      targetBatch.quantity ||
+                        0
+                    ) +
+                    difference,
+
+                  updatedAt:
+                    now,
+                }
+              );
+            } else {
+              /*
+               * Hiç parti yoksa
+               * sayım düzeltme partisi
+               * oluştur.
+               */
+              const newBatchReference =
+                doc(
+                  getPublicCollection(
+                    "batches"
+                  )
+                );
+
+              firestoreBatch.set(
+                newBatchReference,
+                {
+                  productId:
+                    item.productId,
+
+                  quantity:
+                    difference,
+
+                  location,
+
+                  batchNo:
+                    `SAYIM-${Date.now()}`,
+
+                  expiryDate:
+                    null,
+
+                  source:
+                    "INVENTORY_ADJUSTMENT",
+
+                  createdAt:
+                    now,
+
+                  updatedAt:
+                    now,
+
+                  createdByUid:
+                    dbUser?.uid ||
+                    "",
+
+                  createdByName:
+                    dbUser?.name ||
+                    "Yönetici",
+                }
+              );
+            }
+          }
+
+          /*
+           * =================================
+           * TRANSACTION KAYDI
+           * =================================
+           */
+
+          const transactionRef =
+            doc(
+              getPublicCollection(
+                "transactions"
+              )
+            );
+
+          firestoreBatch.set(
+            transactionRef,
+            {
+              type:
+                "INVENTORY_ADJUSTMENT",
+
+              productId:
+                item.productId,
+
+              productName:
+                item.productName,
+
+              location,
+
+              quantity:
+                Math.abs(
+                  item.difference
+                ),
+
+              difference:
+                item.difference,
+
+              previousStock:
+                item.systemStock,
+
+              countedStock:
+                item.countedStock,
+
+              newStock:
+                item.countedStock,
+
+              direction:
+                item.difference >
+                0
+                  ? "IN"
+                  : "OUT",
+
+              reason:
+                "Stok sayım farkı",
+
+              inventoryId:
+                inventoryRef.id,
+
+              userId:
+                dbUser?.uid ||
+                "",
+
+              userName:
+                dbUser?.name ||
+                "Yönetici",
+
+              userRole:
+                dbUser?.role ||
+                "admin",
+
+              date:
+                now,
+
+              createdAt:
+                now,
+            }
+          );
+        }
+
+        /*
+         * =====================================
+         * SAYIM RAPORU
+         * =====================================
+         */
+
+        firestoreBatch.set(
+          inventoryRef,
+          {
+            location,
+
+            status:
+              "APPLIED",
+
+            applied:
+              true,
+
+            appliedByUid:
+              dbUser?.uid ||
+              "",
+
+            appliedByName:
+              dbUser?.name ||
+              "Yönetici",
+
+            appliedAt:
+              now,
+
+            countedByUid:
+              dbUser?.uid ||
+              "",
+
+            countedByName:
+              dbUser?.name ||
+              "Bilinmeyen Kullanıcı",
+
+            countedByRole:
+              dbUser?.role ||
+              "admin",
+
+            totalProducts:
+              inventoryItems.length,
+
+            differenceProducts:
+              differenceItems.length,
+
+            items:
+              inventoryItems,
+
+            createdAt:
+              now,
+
+            completedAt:
+              now,
+          }
+        );
+
+        /*
+         * TÜM İŞLEMLERİ
+         * TEK SEFERDE UYGULA
+         */
+        await firestoreBatch.commit();
+
+        showToast?.(
+          "Sayım farkları stoğa başarıyla uygulandı.",
+          "success"
+        );
+
+        setShowReview(false);
+
+        setCounts({});
+
+        setSearchQuery("");
+
+        setTimeout(() => {
+          onBack?.();
+        }, 1000);
+      } catch (error) {
+        console.error(
+          "Stok farkı uygulama hatası:",
+          error
+        );
+
+        showToast?.(
+          "Stok farkları uygulanamadı.",
+          "error"
+        );
+      } finally {
+        setIsApplying(false);
+      }
+    };
+
+  /*
+   * =====================================
+   * FARK İNCELEME EKRANI
+   * =====================================
+   */
+
+  if (showReview) {
+    return (
+      <div className="flex flex-col h-full bg-gray-950 text-gray-100">
+
+        <header className="bg-gray-900 border-b border-gray-800 p-5">
+
+          <div className="flex items-center gap-4">
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowReview(
+                  false
+                )
+              }
+              disabled={
+                isSaving ||
+                isApplying
+              }
+              className="w-11 h-11 bg-gray-800 rounded-xl flex items-center justify-center"
+            >
+              <ArrowLeft
+                size={22}
+              />
+            </button>
+
+            <div>
+
+              <h1 className="text-xl font-black">
+                Sayım Farkları
+              </h1>
+
+              <p className="text-gray-500 text-xs mt-1">
+                {location ===
+                "DEPO"
+                  ? "Depo"
+                  : "Bar"}{" "}
+                sayım sonucu
+              </p>
+
+            </div>
+
+          </div>
+
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 pb-52">
+
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 mb-5">
+
+            <div className="flex items-start gap-3">
+
+              <AlertTriangle
+                size={24}
+                className="text-orange-400 shrink-0"
+              />
+
+              <div>
+
+                <h2 className="text-orange-400 font-black">
+                  Stok Farkı Bulundu
+                </h2>
+
+                <p className="text-gray-400 text-sm mt-2 leading-6">
+                  {
+                    differenceItems.length
+                  }{" "}
+                  üründe sistem stoğu ile fiziksel sayım arasında fark var.
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div className="space-y-3">
+
+            {differenceItems.map(
+              (item) => (
+                <div
+                  key={
+                    item.productId
+                  }
+                  className="bg-gray-900 border border-gray-800 rounded-2xl p-4"
+                >
+
+                  <h3 className="text-white font-bold">
+                    {
+                      item.productName
+                    }
+                  </h3>
+
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+
+                    <div className="bg-gray-950 rounded-xl p-3 text-center">
+
+                      <p className="text-[9px] text-gray-500 uppercase font-bold">
+                        Sistem
+                      </p>
+
+                      <p className="text-lg font-black text-blue-400 mt-1">
+                        {
+                          item.systemStock
+                        }
+                      </p>
+
+                    </div>
+
+                    <div className="bg-gray-950 rounded-xl p-3 text-center">
+
+                      <p className="text-[9px] text-gray-500 uppercase font-bold">
+                        Sayılan
+                      </p>
+
+                      <p className="text-lg font-black text-white mt-1">
+                        {
+                          item.countedStock
+                        }
+                      </p>
+
+                    </div>
+
+                    <div className="bg-gray-950 rounded-xl p-3 text-center">
+
+                      <p className="text-[9px] text-gray-500 uppercase font-bold">
+                        Fark
+                      </p>
+
+                      <p
+                        className={`text-lg font-black mt-1 ${
+                          item.difference >
+                          0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {item.difference >
+                        0
+                          ? "+"
+                          : ""}
+
+                        {
+                          item.difference
+                        }
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )
+            )}
+
+          </div>
+
+        </main>
+
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4 space-y-3">
+
+          {dbUser?.role ===
+          "admin" ? (
+            <button
+              type="button"
+              onClick={
+                handleApplyDifferences
+              }
+              disabled={
+                isApplying ||
+                isSaving
+              }
+              className="w-full bg-green-600 disabled:bg-gray-800 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2"
+            >
+              <CheckCircle2
+                size={21}
+              />
+
+              {isApplying
+                ? "Stok Güncelleniyor..."
+                : "Farkları Stoğa Uygula"}
+            </button>
+          ) : (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-center">
+
+              <p className="text-orange-400 text-xs font-bold">
+                Stok farklarını yalnızca yönetici uygulayabilir.
+              </p>
+
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={
+              handleSaveWithoutApplying
+            }
+            disabled={
+              isApplying ||
+              isSaving
+            }
+            className="w-full bg-gray-800 disabled:bg-gray-900 text-gray-300 font-bold py-3.5 rounded-xl"
+          >
+            {isSaving
+              ? "Kaydediliyor..."
+              : "Sadece Sayımı Kaydet"}
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  /*
+   * =====================================
+   * ANA SAYIM EKRANI
+   * =====================================
+   */
+
   return (
     <div className="flex flex-col h-full bg-gray-950 text-gray-100">
-
-      {/* SAYIM QR / BARKOD TARAYICI */}
 
       {isInventoryScannerOpen && (
         <QRScannerModal
@@ -511,8 +1327,6 @@ export default function InventoryView({
         />
       )}
 
-      {/* HEADER */}
-
       <header className="bg-gray-900 border-b border-gray-800">
 
         <div className="p-5">
@@ -522,7 +1336,7 @@ export default function InventoryView({
             <button
               type="button"
               onClick={onBack}
-              className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-xl flex items-center justify-center text-white active:scale-95 transition-all"
+              className="w-11 h-11 bg-gray-800 rounded-xl flex items-center justify-center"
             >
               <ArrowLeft
                 size={22}
@@ -531,7 +1345,7 @@ export default function InventoryView({
 
             <div>
 
-              <h1 className="text-xl font-black text-white">
+              <h1 className="text-xl font-black">
                 Stok Sayımı
               </h1>
 
@@ -543,8 +1357,6 @@ export default function InventoryView({
 
           </div>
 
-          {/* LOKASYON */}
-
           <div className="grid grid-cols-2 gap-3 mt-5">
 
             <button
@@ -554,7 +1366,7 @@ export default function InventoryView({
                   "DEPO"
                 )
               }
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold text-sm transition-all ${
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold ${
                 location ===
                 "DEPO"
                   ? "bg-blue-600 border-blue-500 text-white"
@@ -575,7 +1387,7 @@ export default function InventoryView({
                   "BAR"
                 )
               }
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold text-sm transition-all ${
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold ${
                 location ===
                 "BAR"
                   ? "bg-blue-600 border-blue-500 text-white"
@@ -591,8 +1403,6 @@ export default function InventoryView({
 
           </div>
 
-          {/* BARKOD TARA */}
-
           <button
             type="button"
             onClick={() =>
@@ -600,7 +1410,7 @@ export default function InventoryView({
                 true
               )
             }
-            className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
+            className="w-full mt-4 bg-blue-600 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3"
           >
             <Camera
               size={22}
@@ -608,8 +1418,6 @@ export default function InventoryView({
 
             QR / Barkod Tara
           </button>
-
-          {/* ÖZET */}
 
           <div className="grid grid-cols-2 gap-3 mt-4">
 
@@ -619,7 +1427,7 @@ export default function InventoryView({
                 Sayılan Ürün
               </p>
 
-              <p className="text-xl font-black text-white mt-1">
+              <p className="text-xl font-black mt-1">
                 {
                   countedProducts
                 }
@@ -649,8 +1457,6 @@ export default function InventoryView({
             </div>
 
           </div>
-
-          {/* ARAMA */}
 
           <div className="relative mt-4">
 
@@ -697,8 +1503,6 @@ export default function InventoryView({
         </div>
 
       </header>
-
-      {/* ÜRÜNLER */}
 
       <main className="flex-1 overflow-y-auto p-4 pb-32">
 
@@ -759,7 +1563,7 @@ export default function InventoryView({
 
                     <div className="flex-1 min-w-0">
 
-                      <h3 className="text-white font-bold truncate">
+                      <h3 className="font-bold truncate">
                         {
                           product.name
                         }
@@ -774,7 +1578,7 @@ export default function InventoryView({
 
                     </div>
 
-                    <div className="text-right shrink-0">
+                    <div className="text-right">
 
                       <p className="text-[9px] text-gray-600 uppercase font-bold">
                         Sistem
@@ -790,8 +1594,6 @@ export default function InventoryView({
 
                   </div>
 
-                  {/* SAYIM KONTROLÜ */}
-
                   <div className="flex items-center gap-2 mt-4">
 
                     <button
@@ -801,7 +1603,7 @@ export default function InventoryView({
                           product.id
                         )
                       }
-                      className="w-12 h-12 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-center text-gray-400 active:scale-95"
+                      className="w-12 h-12 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-center"
                     >
                       <Minus
                         size={20}
@@ -836,7 +1638,7 @@ export default function InventoryView({
                           product.id
                         )
                       }
-                      className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white active:scale-95"
+                      className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center"
                     >
                       <Plus
                         size={20}
@@ -844,8 +1646,6 @@ export default function InventoryView({
                     </button>
 
                   </div>
-
-                  {/* FARK */}
 
                   {hasCount && (
                     <div
@@ -918,8 +1718,6 @@ export default function InventoryView({
 
       </main>
 
-      {/* SAYIMI TAMAMLA */}
-
       <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4">
 
         <button
@@ -932,9 +1730,8 @@ export default function InventoryView({
           onClick={
             handleCompleteInventory
           }
-          className="w-full bg-green-600 disabled:bg-gray-800 disabled:text-gray-600 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+          className="w-full bg-green-600 disabled:bg-gray-800 disabled:text-gray-600 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2"
         >
-
           <ClipboardCheck
             size={21}
           />
@@ -942,11 +1739,10 @@ export default function InventoryView({
           {isSaving
             ? "Sayım Kaydediliyor..."
             : "Sayımı Tamamla"}
-
         </button>
 
       </div>
 
     </div>
   );
-}
+          }
