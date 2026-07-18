@@ -27,7 +27,9 @@ export default function Dashboard({
   onOpenHistory,
   onOpenNotifications,
   onOpenProfile,
-}) {
+  onOpenPrintCenter,
+}) 
+{
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredProducts = useMemo(() => {
@@ -396,6 +398,11 @@ export default function Dashboard({
             label="Geçmiş"
             onClick={onOpenHistory}
           />
+          <NavButton
+  icon={<CheckCircle2 size={21} />}
+  label="Etiket"
+  onClick={onOpenPrintCenter}
+/>
 
           <NavButton
             icon={<User size={21} />}
