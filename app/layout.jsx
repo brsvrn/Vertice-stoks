@@ -1,8 +1,10 @@
 import "./globals.css";
+import PWARegister from "../components/PWARegister";
 
 export const metadata = {
   title: "Vertice Stok",
-  description: "QR destekli stok takip ve envanter yönetim sistemi",
+  description:
+    "QR destekli stok takip ve envanter yönetim sistemi",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -33,10 +35,15 @@ export const viewport = {
   themeColor: "#030712",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}) {
   return (
     <html lang="tr">
-      <body>{children}</body>
+      <body>
+        <PWARegister />
+        {children}
+      </body>
     </html>
   );
 }
