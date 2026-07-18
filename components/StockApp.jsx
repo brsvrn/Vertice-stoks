@@ -33,6 +33,7 @@ import QRScannerModal from "./QRScannerModal";
 import InventoryView from "./InventoryView";
 import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
+import PermissionsSetupView from "./PermissionsSetupView";
 
 /*
  * =========================================
@@ -89,6 +90,38 @@ export default function StockApp() {
 
   const [inventoryActionLoading, setInventoryActionLoading] =
     useState(false);
+
+  const [
+  permissionsSetupCompleted,
+  setPermissionsSetupCompleted,
+] = useState(null);
+  /*
+ * =========================================
+ * İLK KURULUM İZİN DURUMU
+ * =========================================
+ */
+
+useEffect(() => {
+  try {
+    const completed =
+      localStorage.getItem(
+        "vertice_permissions_setup_completed"
+      );
+
+    setPermissionsSetupCompleted(
+      completed === "true"
+    );
+  } catch (error) {
+    console.error(
+      "İzin kurulum durumu okunamadı:",
+      error
+    );
+
+    setPermissionsSetupCompleted(
+      false
+    );
+  }
+}, []);
 
   /*
    * =========================================
@@ -2105,7 +2138,34 @@ export default function StockApp() {
         );
       }
     };
+/*
+ * =========================================
+ * İLK AÇILIŞ İZİN EKRANI
+ * =========================================
+ */
 
+if (
+  permissionsSetupCompleted ===
+  null
+) {
+  return (
+    <main className="min-h-screen bg-gray-950" />
+  );
+}
+
+if (
+  !permissionsSetupCompleted
+) {
+  return (
+    <PermissionsSetupView
+      onComplete={() => {
+        setPermissionsSetupCompleted(
+          true
+        );
+      }}
+    />
+  );
+}
   /*
    * =========================================
    * YÜKLENİYOR
