@@ -16,7 +16,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 
-import { auth, db } from "../lib/firebase";
+import { auth, db, appId } from "../lib/firebase";
 
 import {
   getFCMToken,
@@ -29,7 +29,6 @@ import AdminAddProductView from "./AdminAddProductView";
 import ProductDetailView from "./ProductDetailView";
 import QRScannerModal from "./QRScannerModal";
 
-const APP_ID = "vertice-stok";
 
 export const getPublicCollection = (collectionName) => {
   return collection(
