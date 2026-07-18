@@ -34,7 +34,7 @@ export const getPublicCollection = (collectionName) => {
   return collection(
     db,
     "artifacts",
-    APP_ID,
+    appId,
     "public",
     "data",
     collectionName
