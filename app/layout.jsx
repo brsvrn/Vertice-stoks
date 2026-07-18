@@ -1,28 +1,9 @@
 import "./globals.css";
 
 export const metadata = {
-  title: {
-    default: "Vertice Stok",
-    template: "%s | Vertice Stok",
-  },
-
-  description:
-    "QR ve barkod destekli stok takip, sayım ve envanter yönetim sistemi.",
-
-  applicationName: "Vertice Stok",
-
-  manifest: "/manifest.webmanifest",
-
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Vertice Stok",
-  },
-
-  formatDetection: {
-    telephone: false,
-  },
-
+  title: "Vertice Stok",
+  description: "QR destekli stok takip ve envanter yönetim sistemi",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       {
@@ -36,14 +17,12 @@ export const metadata = {
         type: "image/png",
       },
     ],
-
-    apple: [
-      {
-        url: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-    ],
+    apple: "/icons/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Vertice Stok",
   },
 };
 
@@ -51,14 +30,10 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
   themeColor: "#030712",
 };
 
-export default function RootLayout({
-  children,
-}) {
+export default function RootLayout({ children }) {
   return (
     <html lang="tr">
       <body>{children}</body>
