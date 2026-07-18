@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import InventoryView from "./InventoryView";
+
 import {
   onAuthStateChanged,
   signInAnonymously,
@@ -16,8 +16,6 @@ import {
   setDoc,
 } from "firebase/firestore";
 
-import InventoryView from "./InventoryView";
-
 import { auth, db, appId } from "../lib/firebase";
 
 import {
@@ -30,7 +28,7 @@ import ProfileSetupView from "./ProfileSetupView";
 import AdminAddProductView from "./AdminAddProductView";
 import ProductDetailView from "./ProductDetailView";
 import QRScannerModal from "./QRScannerModal";
-
+import InventoryView from "./InventoryView";
 
 export const getPublicCollection = (collectionName) => {
   return collection(
@@ -88,13 +86,9 @@ export default function StockApp() {
       typeof window !== "undefined" &&
       "Notification" in window
     ) {
-      setNotificationStatus(
-        Notification.permission
-      );
+      setNotificationStatus(Notification.permission);
     } else {
-      setNotificationStatus(
-        "unsupported"
-      );
+      setNotificationStatus("unsupported");
     }
   }, []);
 
@@ -287,8 +281,7 @@ export default function StockApp() {
           );
 
         if (active) {
-          unsubscribe =
-            unsubscribeFunction;
+          unsubscribe = unsubscribeFunction;
         }
       } catch (error) {
         console.error(
@@ -303,10 +296,7 @@ export default function StockApp() {
     return () => {
       active = false;
 
-      if (
-        typeof unsubscribe ===
-        "function"
-      ) {
+      if (typeof unsubscribe === "function") {
         unsubscribe();
       }
     };
@@ -314,154 +304,127 @@ export default function StockApp() {
 
   /*
    * BİLDİRİMLERİ ETKİNLEŞTİR
-   *
-   * 1. Kullanıcıdan izin ister.
-   * 2. Service Worker kaydeder.
-   * 3. FCM token alır.
-   * 4. Token'ı Firestore devices
-   *    koleksiyonuna kaydeder.
    */
-  const handleEnableNotifications =
-    async () => {
-      if (!user) {
+  const handleEnableNotifications = async () => {
+    if (!user) {
+      showToast(
+        "Kullanıcı oturumu bulunamadı.",
+        "error"
+      );
+
+      return;
+    }
+
+    setNotificationLoading(true);
+
+    try {
+      const token = await getFCMToken();
+
+      if (!token) {
+        throw new Error("FCM_TOKEN_EMPTY");
+      }
+
+      const deviceReference = doc(
+        getPublicCollection("devices"),
+        user.uid
+      );
+
+      await setDoc(
+        deviceReference,
+        {
+          uid: user.uid,
+
+          userName:
+            dbUser?.name || "",
+
+          role:
+            dbUser?.role || "personel",
+
+          token,
+
+          notificationsEnabled:
+            true,
+
+          platform:
+            typeof navigator !== "undefined"
+              ? navigator.platform || "web"
+              : "web",
+
+          userAgent:
+            typeof navigator !== "undefined"
+              ? navigator.userAgent
+              : "",
+
+          updatedAt:
+            new Date().toISOString(),
+        },
+        {
+          merge: true,
+        }
+      );
+
+      setNotificationStatus("granted");
+
+      showToast(
+        "Telefon bildirimleri etkinleştirildi.",
+        "success"
+      );
+    } catch (error) {
+      console.error(
+        "Bildirim etkinleştirme hatası:",
+        error
+      );
+
+      if (
+        error?.message ===
+        "NOTIFICATION_PERMISSION_DENIED"
+      ) {
+        setNotificationStatus("denied");
+
         showToast(
-          "Kullanıcı oturumu bulunamadı.",
+          "Bildirim izni engellenmiş. Tarayıcı site ayarlarından bildirim iznini açın.",
           "error"
         );
 
         return;
       }
 
-      setNotificationLoading(true);
-
-      try {
-        const token =
-          await getFCMToken();
-
-        if (!token) {
-          throw new Error(
-            "FCM_TOKEN_EMPTY"
-          );
-        }
-
-        /*
-         * Token'ın tamamını document ID
-         * olarak kullanmıyoruz.
-         *
-         * Kullanıcının UID'si cihaz kaydı
-         * için yeterli.
-         */
-        const deviceReference = doc(
-          getPublicCollection("devices"),
-          user.uid
-        );
-
-        await setDoc(
-          deviceReference,
-          {
-            uid: user.uid,
-
-            userName:
-              dbUser?.name || "",
-
-            role:
-              dbUser?.role ||
-              "personel",
-
-            token,
-
-            notificationsEnabled:
-              true,
-
-            platform:
-              typeof navigator !==
-              "undefined"
-                ? navigator.platform ||
-                  "web"
-                : "web",
-
-            userAgent:
-              typeof navigator !==
-              "undefined"
-                ? navigator.userAgent
-                : "",
-
-            updatedAt:
-              new Date().toISOString(),
-          },
-          {
-            merge: true,
-          }
-        );
-
-        setNotificationStatus(
-          "granted"
-        );
-
-        showToast(
-          "Telefon bildirimleri etkinleştirildi.",
-          "success"
-        );
-      } catch (error) {
-        console.error(
-          "Bildirim etkinleştirme hatası:",
-          error
-        );
-
-        if (
-          error?.message ===
-          "NOTIFICATION_PERMISSION_DENIED"
-        ) {
-          setNotificationStatus(
-            "denied"
-          );
-
-          showToast(
-            "Bildirim izni engellenmiş. Tarayıcı site ayarlarından bildirim iznini açın.",
-            "error"
-          );
-
-          return;
-        }
-
-        if (
-          error?.message ===
+      if (
+        error?.message ===
           "NOTIFICATION_NOT_SUPPORTED" ||
-          error?.message ===
+        error?.message ===
           "MESSAGING_NOT_SUPPORTED"
-        ) {
-          setNotificationStatus(
-            "unsupported"
-          );
-
-          showToast(
-            "Bu tarayıcı push bildirimlerini desteklemiyor.",
-            "error"
-          );
-
-          return;
-        }
-
-        if (
-          error?.message ===
-          "VAPID_KEY_MISSING"
-        ) {
-          showToast(
-            "VAPID anahtarı bulunamadı. Vercel ayarlarını kontrol edin.",
-            "error"
-          );
-
-          return;
-        }
+      ) {
+        setNotificationStatus("unsupported");
 
         showToast(
-          "Bildirim sistemi etkinleştirilemedi.",
+          "Bu tarayıcı push bildirimlerini desteklemiyor.",
           "error"
         );
-      } finally {
-        setNotificationLoading(false);
+
+        return;
       }
-    };
+
+      if (
+        error?.message ===
+        "VAPID_KEY_MISSING"
+      ) {
+        showToast(
+          "VAPID anahtarı bulunamadı. Vercel ayarlarını kontrol edin.",
+          "error"
+        );
+
+        return;
+      }
+
+      showToast(
+        "Bildirim sistemi etkinleştirilemedi.",
+        "error"
+      );
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
 
   /*
    * PROFİL OLUŞTUR
@@ -517,177 +480,128 @@ export default function StockApp() {
   };
 
   /*
-   * UYGULAMA İÇİ STOK VE SKT
-   * BİLDİRİMLERİ
+   * UYGULAMA İÇİ BİLDİRİMLER
    */
-  const activeNotifications =
-    useMemo(() => {
-      const notifications = [];
+  const activeNotifications = useMemo(() => {
+    const notifications = [];
 
-      products.forEach(
-        (product) => {
-          const totalStock =
-            batches
-              .filter(
-                (batch) =>
-                  batch.productId ===
-                  product.id
-              )
-              .reduce(
-                (total, batch) =>
-                  total +
-                  Number(
-                    batch.quantity ||
-                      0
-                  ),
-                0
-              );
+    products.forEach((product) => {
+      const totalStock = batches
+        .filter(
+          (batch) =>
+            batch.productId === product.id
+        )
+        .reduce(
+          (total, batch) =>
+            total +
+            Number(batch.quantity || 0),
+          0
+        );
 
-          const minimumStock =
-            Number(
-              product.minStock || 0
-            );
+      const minimumStock =
+        Number(product.minStock || 0);
 
-          if (
-            totalStock <=
-            minimumStock
-          ) {
-            notifications.push({
-              id: `critical-${product.id}`,
-              type: "CRITICAL",
-              title:
-                "Kritik Stok Uyarısı",
-              message:
-                `${product.name} kritik stok seviyesinde. ` +
-                `Mevcut: ${totalStock} / Minimum: ${minimumStock}`,
-              productId:
-                product.id,
-            });
-          }
-        }
-      );
+      if (
+        minimumStock > 0 &&
+        totalStock <= minimumStock
+      ) {
+        notifications.push({
+          id: `critical-${product.id}`,
+          type: "CRITICAL",
+          title: "Kritik Stok Uyarısı",
+          message:
+            `${product.name} kritik stok seviyesinde. ` +
+            `Mevcut: ${totalStock} / Minimum: ${minimumStock}`,
+          productId: product.id,
+        });
+      }
+    });
 
-      batches.forEach(
-        (batch) => {
-          const quantity =
-            Number(
-              batch.quantity || 0
-            );
+    batches.forEach((batch) => {
+      const quantity =
+        Number(batch.quantity || 0);
 
-          if (
-            quantity <= 0 ||
-            !batch.expiryDate
-          ) {
-            return;
-          }
+      if (
+        quantity <= 0 ||
+        !batch.expiryDate
+      ) {
+        return;
+      }
 
-          const expiry =
-            new Date(
-              batch.expiryDate
-            );
+      const expiry =
+        new Date(batch.expiryDate);
 
-          const today =
-            new Date();
+      const today = new Date();
 
-          expiry.setHours(
-            0,
-            0,
-            0,
-            0
-          );
+      expiry.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
 
-          today.setHours(
-            0,
-            0,
-            0,
-            0
-          );
+      const milliseconds =
+        expiry.getTime() -
+        today.getTime();
 
-          const milliseconds =
-            expiry.getTime() -
-            today.getTime();
+      const daysLeft =
+        Math.ceil(
+          milliseconds /
+            (1000 * 60 * 60 * 24)
+        );
 
-          const daysLeft =
-            Math.ceil(
-              milliseconds /
-                (1000 *
-                  60 *
-                  60 *
-                  24)
-            );
+      const product =
+        products.find(
+          (item) =>
+            item.id === batch.productId
+        );
 
-          const product =
-            products.find(
-              (item) =>
-                item.id ===
-                batch.productId
-            );
+      const productName =
+        product?.name ||
+        "Bilinmeyen Ürün";
 
-          const productName =
-            product?.name ||
-            "Bilinmeyen Ürün";
+      if (daysLeft < 0) {
+        notifications.push({
+          id: `expired-${batch.id}`,
+          type: "ERROR",
+          title: "SKT Geçti",
+          message:
+            `${productName} - Parti #${batch.batchNo || "-"} ` +
+            `ürününün son kullanma tarihi geçti.`,
+          productId: batch.productId,
+          batchId: batch.id,
+        });
 
-          if (daysLeft < 0) {
-            notifications.push({
-              id: `expired-${batch.id}`,
-              type: "ERROR",
-              title: "SKT Geçti",
-              message:
-                `${productName} - Parti #${batch.batchNo || "-"} ` +
-                `ürününün son kullanma tarihi geçti.`,
-              productId:
-                batch.productId,
-              batchId:
-                batch.id,
-            });
+        return;
+      }
 
-            return;
-          }
+      if (daysLeft === 0) {
+        notifications.push({
+          id: `expiry-today-${batch.id}`,
+          type: "CRITICAL",
+          title: "SKT Bugün Doluyor",
+          message:
+            `${productName} - Parti #${batch.batchNo || "-"} ` +
+            `ürününün son kullanma tarihi bugün.`,
+          productId: batch.productId,
+          batchId: batch.id,
+        });
 
-          /*
-           * SKT bugün
-           */
-          if (daysLeft === 0) {
-            notifications.push({
-              id: `expiry-today-${batch.id}`,
-              type: "CRITICAL",
-              title:
-                "SKT Bugün Doluyor",
-              message:
-                `${productName} - Parti #${batch.batchNo || "-"} ` +
-                `ürününün son kullanma tarihi bugün.`,
-              productId:
-                batch.productId,
-              batchId:
-                batch.id,
-            });
+        return;
+      }
 
-            return;
-          }
+      if (daysLeft <= 3) {
+        notifications.push({
+          id: `expiry-${batch.id}`,
+          type: "WARNING",
+          title: "SKT Yaklaşıyor",
+          message:
+            `${productName} - Parti #${batch.batchNo || "-"} ` +
+            `için ${daysLeft} gün kaldı.`,
+          productId: batch.productId,
+          batchId: batch.id,
+        });
+      }
+    });
 
-          /*
-           * SKT'ye 3 gün veya daha az kaldı.
-           */
-          if (daysLeft <= 3) {
-            notifications.push({
-              id: `expiry-${batch.id}`,
-              type: "WARNING",
-              title:
-                "SKT Yaklaşıyor",
-              message:
-                `${productName} - Parti #${batch.batchNo || "-"} ` +
-                `için ${daysLeft} gün kaldı.`,
-              productId:
-                batch.productId,
-              batchId:
-                batch.id,
-            });
-          }
-        }
-      );
-
-      return notifications;
-    }, [products, batches]);
+    return notifications;
+  }, [products, batches]);
 
   /*
    * ÜRÜN ARA / OKUT
@@ -698,9 +612,7 @@ export default function StockApp() {
     setIsScannerOpen(false);
 
     const cleanCode =
-      String(
-        decodedText || ""
-      ).trim();
+      String(decodedText || "").trim();
 
     if (!cleanCode) {
       showToast(
@@ -712,27 +624,20 @@ export default function StockApp() {
     }
 
     const foundProduct =
-      products.find(
-        (product) => {
-          const productCode =
-            String(
-              product.qrNo ||
-                product.barcode ||
-                product.barcodeNo ||
-                ""
-            ).trim();
+      products.find((product) => {
+        const productCode =
+          String(
+            product.qrNo ||
+              product.barcode ||
+              product.barcodeNo ||
+              ""
+          ).trim();
 
-          return (
-            productCode ===
-            cleanCode
-          );
-        }
-      );
+        return productCode === cleanCode;
+      });
 
     if (foundProduct) {
-      setSelectedProduct(
-        foundProduct
-      );
+      setSelectedProduct(foundProduct);
 
       setCurrentView(
         "product_detail"
@@ -771,9 +676,7 @@ export default function StockApp() {
     setIsAddScannerOpen(false);
 
     const cleanCode =
-      String(
-        decodedText || ""
-      ).trim();
+      String(decodedText || "").trim();
 
     if (!cleanCode) {
       showToast(
@@ -785,22 +688,17 @@ export default function StockApp() {
     }
 
     const foundProduct =
-      products.find(
-        (product) => {
-          const productCode =
-            String(
-              product.qrNo ||
-                product.barcode ||
-                product.barcodeNo ||
-                ""
-            ).trim();
+      products.find((product) => {
+        const productCode =
+          String(
+            product.qrNo ||
+              product.barcode ||
+              product.barcodeNo ||
+              ""
+          ).trim();
 
-          return (
-            productCode ===
-            cleanCode
-          );
-        }
-      );
+        return productCode === cleanCode;
+      });
 
     if (foundProduct) {
       setSelectedProduct(
@@ -833,6 +731,9 @@ export default function StockApp() {
     );
   };
 
+  /*
+   * ÜRÜN DETAYINI AÇ
+   */
   const handleOpenProduct = (
     product
   ) => {
@@ -843,44 +744,47 @@ export default function StockApp() {
     );
   };
 
-  const handleBackToDashboard =
-    () => {
-      setSelectedProduct(null);
+  /*
+   * ANA SAYFAYA DÖN
+   */
+  const handleBackToDashboard = () => {
+    setSelectedProduct(null);
 
-      setScannedBarcodeForAdd(
-        ""
+    setScannedBarcodeForAdd("");
+
+    setCurrentView("dashboard");
+  };
+
+  /*
+   * ÇIKIŞ
+   */
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+
+      setDbUser(null);
+      setUser(null);
+
+      showToast(
+        "Çıkış yapıldı.",
+        "success"
+      );
+    } catch (error) {
+      console.error(
+        "Çıkış hatası:",
+        error
       );
 
-      setCurrentView(
-        "dashboard"
+      showToast(
+        "Çıkış yapılamadı.",
+        "error"
       );
-    };
+    }
+  };
 
-  const handleLogout =
-    async () => {
-      try {
-        await signOut(auth);
-
-        setDbUser(null);
-        setUser(null);
-
-        showToast(
-          "Çıkış yapıldı.",
-          "success"
-        );
-      } catch (error) {
-        console.error(
-          "Çıkış hatası:",
-          error
-        );
-
-        showToast(
-          "Çıkış yapılamadı.",
-          "error"
-        );
-      }
-    };
-
+  /*
+   * YÜKLENİYOR
+   */
   if (isAuthLoading) {
     return (
       <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
@@ -901,6 +805,9 @@ export default function StockApp() {
     );
   }
 
+  /*
+   * AUTH HATASI
+   */
   if (!user) {
     return (
       <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
@@ -931,6 +838,9 @@ export default function StockApp() {
     );
   }
 
+  /*
+   * PROFİL YOK
+   */
   if (!dbUser) {
     return (
       <>
@@ -950,12 +860,17 @@ export default function StockApp() {
     );
   }
 
+  /*
+   * UYGULAMA
+   */
   return (
     <div className="max-w-md mx-auto h-screen bg-gray-950 text-gray-100 overflow-hidden relative shadow-2xl">
 
       {toast && (
         <Toast toast={toast} />
       )}
+
+      {/* ÜRÜN ARAMA TARAYICISI */}
 
       {isScannerOpen && (
         <QRScannerModal
@@ -969,13 +884,13 @@ export default function StockApp() {
         />
       )}
 
+      {/* YENİ ÜRÜN TARAYICISI */}
+
       {isAddScannerOpen && (
         <QRScannerModal
           title="Barkod Okutarak Ekle"
           onClose={() =>
-            setIsAddScannerOpen(
-              false
-            )
+            setIsAddScannerOpen(false)
           }
           onScan={
             handleAddScan
@@ -983,8 +898,9 @@ export default function StockApp() {
         />
       )}
 
-      {currentView ===
-        "dashboard" && (
+      {/* DASHBOARD */}
+
+      {currentView === "dashboard" && (
         <Dashboard
           dbUser={dbUser}
           products={products}
@@ -999,13 +915,11 @@ export default function StockApp() {
             setIsScannerOpen(true)
           }
           onOpenAddScanner={() =>
-            setIsAddScannerOpen(
-              true
-            )
+            setIsAddScannerOpen(true)
           }
           onOpenInventory={() => {
-  setCurrentView("inventory");
-}} 
+            setCurrentView(
+              "inventory"
             );
           }}
           onOpenHistory={() => {
@@ -1028,8 +942,25 @@ export default function StockApp() {
         />
       )}
 
-      {currentView ===
-        "admin_add" && (
+      {/* STOK SAYIMI */}
+
+      {currentView === "inventory" && (
+        <InventoryView
+          products={products}
+          batches={batches}
+          dbUser={dbUser}
+          onBack={
+            handleBackToDashboard
+          }
+          showToast={
+            showToast
+          }
+        />
+      )}
+
+      {/* YENİ ÜRÜN EKLE */}
+
+      {currentView === "admin_add" && (
         <AdminAddProductView
           scannedBarcode={
             scannedBarcodeForAdd
@@ -1042,6 +973,8 @@ export default function StockApp() {
           }
         />
       )}
+
+      {/* ÜRÜN DETAY */}
 
       {currentView ===
         "product_detail" &&
@@ -1070,8 +1003,9 @@ export default function StockApp() {
           />
         )}
 
-      {currentView ===
-        "profile" && (
+      {/* PROFİL */}
+
+      {currentView === "profile" && (
         <ProfileScreen
           dbUser={dbUser}
           notificationStatus={
@@ -1096,6 +1030,9 @@ export default function StockApp() {
   );
 }
 
+/*
+ * TOAST
+ */
 function Toast({ toast }) {
   const isError =
     toast.type === "error";
@@ -1117,6 +1054,9 @@ function Toast({ toast }) {
   );
 }
 
+/*
+ * PROFİL
+ */
 function ProfileScreen({
   dbUser,
   notificationStatus,
@@ -1172,6 +1112,8 @@ function ProfileScreen({
           </span>
 
         </div>
+
+        {/* BİLDİRİMLER */}
 
         <div className="mt-6 bg-gray-900 border border-gray-800 rounded-2xl p-5">
 
@@ -1240,4 +1182,4 @@ function ProfileScreen({
 
     </div>
   );
-}
+                    }
