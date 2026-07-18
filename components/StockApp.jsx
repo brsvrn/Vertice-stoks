@@ -31,6 +31,7 @@ import AdminAddProductView from "./AdminAddProductView";
 import ProductDetailView from "./ProductDetailView";
 import QRScannerModal from "./QRScannerModal";
 import InventoryView from "./InventoryView";
+import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 
 /*
@@ -105,6 +106,11 @@ export default function StockApp() {
     notificationLoading,
     setNotificationLoading,
   ] = useState(false);
+
+  const [
+    readNotificationIds, 
+    setReadNotificationIds, 
+  ] =  useState([]);
 
   const [
     inventoryActionLoading,
@@ -584,6 +590,65 @@ export default function StockApp() {
             "FCM_TOKEN_EMPTY"
           );
         }
+        /*
+ * OKUNMAMIŞ BİLDİRİMLER
+ */
+const unreadNotifications = useMemo(() => {
+  return activeNotifications.filter(
+    (notification) =>
+      !readNotificationIds.includes(notification.id)
+  );
+}, [activeNotifications, readNotificationIds]);
+
+/*
+ * TEK BİLDİRİMİ OKUNDU YAP
+ */
+const handleMarkNotificationAsRead = (notificationId) => {
+  setReadNotificationIds((previous) => {
+    if (previous.includes(notificationId)) {
+      return previous;
+    }
+
+    return [...previous, notificationId];
+  });
+};
+
+/*
+ * TÜM BİLDİRİMLERİ OKUNDU YAP
+ */
+const handleMarkAllNotificationsAsRead = () => {
+  setReadNotificationIds(
+    activeNotifications.map(
+      (notification) => notification.id
+    )
+  );
+
+  showToast(
+    "Tüm bildirimler okundu olarak işaretlendi.",
+    "success"
+  );
+};
+
+/*
+ * BİLDİRİMDEN ÜRÜNÜ AÇ
+ */
+const handleOpenProductFromNotification = (productId) => {
+  const product = products.find(
+    (item) => item.id === productId
+  );
+
+  if (!product) {
+    showToast(
+      "Bildirimle ilişkili ürün bulunamadı.",
+      "error"
+    );
+
+    return;
+  }
+
+  setSelectedProduct(product);
+  setCurrentView("product_detail");
+};
 
         const deviceReference =
           doc(
@@ -2261,7 +2326,8 @@ export default function StockApp() {
             batches
           }
           notifications={
-            activeNotifications
+            unreadNotifications
+          } 
           }
           onOpenProduct={
             handleOpenProduct
@@ -2287,9 +2353,8 @@ export default function StockApp() {
             )
           }
           onOpenNotifications={() => {
-            showToast(
-              `${activeNotifications.length} aktif bildiriminiz var.`,
-              "success"
+  setCurrentView("notifications");
+}} 
             );
           }}
           onOpenProfile={() =>
