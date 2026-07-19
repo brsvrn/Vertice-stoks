@@ -35,6 +35,7 @@ import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
+import { parseProductReference } from "../lib/qr";
 
 /*
 
@@ -83,6 +84,11 @@ export default function StockApp() {
   const [isAddScannerOpen, setIsAddScannerOpen] = useState(false);
 
   const [scannedBarcodeForAdd, setScannedBarcodeForAdd] = useState("");
+
+  const [pendingProductId, setPendingProductId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("product") || "";
+  });
 
   const [toast, setToast] = useState(null);
 
@@ -299,6 +305,19 @@ export default function StockApp() {
       unsubscribeInventoryCounts();
     };
   }, [user, dbUser]);
+
+  useEffect(() => {
+    if (!pendingProductId || products.length === 0) {
+      return;
+    }
+
+    const product = products.find((item) => item.id === pendingProductId);
+    if (product) {
+      setSelectedProduct(product);
+      setCurrentView("product_detail");
+      setPendingProductId("");
+    }
+  }, [pendingProductId, products]);
 
   /*
 
@@ -944,11 +963,12 @@ export default function StockApp() {
       showToast("Geçerli bir barkod okunamadı.", "error");
       return;
     }
+    const reference = parseProductReference(cleanCode);
     const foundProduct = products.find((product) => {
       const productCode = String(
         product.qrNo || product.barcode || product.barcodeNo || ""
       ).trim();
-      return productCode === cleanCode;
+      return product.id === reference.productId || productCode === reference.barcode;
     });
     if (foundProduct) {
       setSelectedProduct(foundProduct);
@@ -956,8 +976,12 @@ export default function StockApp() {
       showToast("Ürün bulundu.", "success");
       return;
     }
+    if (reference.productId) {
+      showToast("Bu QR bağlantısına ait ürün bulunamadı.", "error");
+      return;
+    }
     setSelectedProduct(null);
-    setScannedBarcodeForAdd(cleanCode);
+    setScannedBarcodeForAdd(reference.barcode);
     setCurrentView("admin_add");
     showToast(
       "Bu barkod sistemde kayıtlı değil. Yeni ürün olarak ekleyebilirsiniz.",
@@ -981,11 +1005,12 @@ export default function StockApp() {
       showToast("Geçerli bir barkod okunamadı.", "error");
       return;
     }
+    const reference = parseProductReference(cleanCode);
     const foundProduct = products.find((product) => {
       const productCode = String(
         product.qrNo || product.barcode || product.barcodeNo || ""
       ).trim();
-      return productCode === cleanCode;
+      return product.id === reference.productId || productCode === reference.barcode;
     });
     if (foundProduct) {
       setSelectedProduct(foundProduct);
@@ -993,7 +1018,11 @@ export default function StockApp() {
       showToast("Bu barkod zaten kayıtlı. Ürün detayları açıldı.", "success");
       return;
     }
-    setScannedBarcodeForAdd(cleanCode);
+    if (reference.productId) {
+      showToast("Bu QR bağlantısına ait ürün bulunamadı.", "error");
+      return;
+    }
+    setScannedBarcodeForAdd(reference.barcode);
     setCurrentView("admin_add");
     showToast("Barkod okundu. Ürün bilgilerini tamamlayın.", "success");
   };

@@ -35,6 +35,7 @@ import {
 } from "./StockApp";
 
 import QRScannerModal from "./QRScannerModal";
+import { parseProductReference } from "../lib/qr";
 
 export default function InventoryView({
   products = [],
@@ -259,6 +260,7 @@ export default function InventoryView({
       return;
     }
 
+    const reference = parseProductReference(cleanCode);
     const foundProduct =
       products.find(
         (product) => {
@@ -271,8 +273,8 @@ export default function InventoryView({
             ).trim();
 
           return (
-            productCode ===
-            cleanCode
+            product.id === reference.productId ||
+            productCode === reference.barcode
           );
         }
       );
