@@ -69,12 +69,12 @@ export default function PrintCenterView({
   const handlePDF = async () => {
     setIsExporting(true);
     try {
-      await createPDF(printRef);
+      await createPDF(selectedProducts);
       showToast?.("A4 etiket PDF dosyası indirildi.", "success");
     } catch (error) {
       console.error("Label PDF creation failed:", error);
       showToast?.(
-        "PDF oluşturulamadı. Etiketlerin yüklenmesini bekleyip tekrar deneyin.",
+        "PDF oluşturulamadı. Lütfen tekrar deneyin.",
         "error"
       );
     } finally {
