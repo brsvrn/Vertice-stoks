@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { getPublicCollection } from "./StockApp";
+import { sendPushNotificationEvent } from "../lib/pushNotifications";
 
 export default function AdminAddProductView({
   onBack,
@@ -70,7 +71,7 @@ export default function AdminAddProductView({
     setIsSaving(true);
 
     try {
-      await addDoc(
+      const productReference = await addDoc(
         getPublicCollection("products"),
         {
           name,
@@ -83,6 +84,11 @@ export default function AdminAddProductView({
           createdAt: new Date().toISOString(),
         }
       );
+
+      void sendPushNotificationEvent({
+        type: "PRODUCT_CREATED",
+        productId: productReference.id,
+      });
 
       showToast?.(
         "Ürün başarıyla eklendi.",
