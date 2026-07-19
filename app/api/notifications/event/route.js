@@ -73,11 +73,10 @@ async function sendToDevices({ messaging, deviceDocuments, notification }) {
     const chunk = tokens.slice(start, start + 500);
     const response = await messaging.sendEachForMulticast({
       tokens: chunk,
-      notification: {
+      data: {
+        notificationId: notification.tag,
         title: notification.title,
         body: notification.body,
-      },
-      data: {
         type: notification.type,
         productId: notification.productId || "",
         batchId: notification.batchId || "",
@@ -85,12 +84,6 @@ async function sendToDevices({ messaging, deviceDocuments, notification }) {
         priority: notification.priority || "normal",
       },
       webpush: {
-        notification: {
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: notification.tag,
-          renotify: notification.priority === "critical",
-        },
         fcmOptions: { link: notification.url || "/" },
       },
     });
