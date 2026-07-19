@@ -1,7 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
+
+const SUPPORTED_CODE_FORMATS = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.ITF,
+];
 
 export default function QRScannerModal({
 title = "Ürün Ara / Okut",
@@ -88,6 +104,27 @@ return true;
 
 };
 
+const getPreferredCameraId = async () => {
+try {
+  const cameras = await Html5Qrcode.getCameras();
+
+  if (cameras.length === 0) {
+    return null;
+  }
+
+  const rearCamera = cameras.find((camera) =>
+    /(back|rear|environment|arka)/i.test(camera.label)
+  );
+
+  // Bazı Android cihazlar kamera etiketini boş döndürür; son kamera
+  // genellikle arka kameradır.
+  return (rearCamera || cameras[cameras.length - 1]).id;
+} catch (err) {
+  console.warn("Kamera listesi okunamadı:", err);
+  return null;
+}
+};
+
 /*
 
 ARKA KAMERAYI BAŞLAT
@@ -152,44 +189,18 @@ try {
    *  
    * environment = telefonun arka kamerası  
    */  
-  await scanner.start(  
-    {  
-      facingMode: "environment",  
-    },  
-    {  
-      fps: 10,  
+  const cameraId = await getPreferredCameraId();
+  const scanConfig = {
+    fps: 15,
+    disableFlip: false,
+    formatsToSupport: SUPPORTED_CODE_FORMATS,
+    qrbox: (viewfinderWidth, viewfinderHeight) => ({
+      width: Math.max(Math.floor(Math.min(viewfinderWidth * 0.92, 420)), 240),
+      height: Math.max(Math.floor(Math.min(viewfinderHeight * 0.55, 260)), 140),
+    }),
+  };
 
-      qrbox: (  
-        viewfinderWidth,  
-        viewfinderHeight  
-      ) => {  
-        const width = Math.floor(  
-          Math.min(  
-            viewfinderWidth * 0.85,  
-            320  
-          )  
-        );  
-
-        const height = Math.floor(  
-          Math.min(  
-            viewfinderHeight * 0.35,  
-            160  
-          )  
-        );  
-
-        return {  
-          width,  
-          height,  
-        };  
-      },  
-
-      aspectRatio: 1.777778,  
-    },  
-
-    /*  
-     * KOD BAŞARIYLA OKUNDU  
-     */  
-    async (decodedText) => {  
+  const onScanSuccess = async (decodedText) => {
       if (hasScannedRef.current) {  
         return;  
       }  
@@ -205,14 +216,27 @@ try {
       if (mountedRef.current) {  
         onScan(decodedText);  
       }  
-    },  
+    };
 
-    /*  
-     * Henüz kod algılanmadı.  
-     * Hata göstermiyoruz.  
-     */  
-    () => {}  
-  );  
+  try {
+    await scanner.start(
+      cameraId || { facingMode: { ideal: "environment" } },
+      scanConfig,
+      onScanSuccess,
+      () => {}
+    );
+  } catch (cameraError) {
+    if (!cameraId) {
+      throw cameraError;
+    }
+
+    await scanner.start(
+      { facingMode: { ideal: "environment" } },
+      scanConfig,
+      onScanSuccess,
+      () => {}
+    );
+  }
 
   if (mountedRef.current) {  
     setStatus("scanning");  
