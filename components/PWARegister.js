@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { registerFirebaseServiceWorker } from "../lib/firebaseMessaging";
 
 export default function PWARegister() {
   useEffect(() => {
@@ -13,10 +14,7 @@ export default function PWARegister() {
 
     const registerServiceWorker = async () => {
       try {
-        const registration =
-          await navigator.serviceWorker.register("/sw.js", {
-            scope: "/",
-          });
+        const registration = await registerFirebaseServiceWorker();
 
         console.log(
           "PWA Service Worker kayıtlı:",
