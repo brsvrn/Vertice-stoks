@@ -23,6 +23,7 @@ import {
 
 import { db } from "../lib/firebase";
 import { getPublicCollection } from "./StockApp";
+import { sendPushNotificationEvent } from "../lib/pushNotifications";
 
 export default function ProductDetailView({
   product,
@@ -240,6 +241,13 @@ export default function ProductDetailView({
         batchId: newBatch.id,
       });
 
+      void sendPushNotificationEvent({
+        type: "STOCK_IN",
+        productId: product.id,
+        batchId: newBatch.id,
+        quantity,
+      });
+
       showToast?.(
         "Stok girişi başarıyla kaydedildi."
       );
@@ -317,6 +325,13 @@ export default function ProductDetailView({
         locationInfo:
           selectedBatch.location || "DEPO",
         batchId: selectedBatch.id,
+      });
+
+      void sendPushNotificationEvent({
+        type: "STOCK_OUT",
+        productId: product.id,
+        batchId: selectedBatch.id,
+        quantity,
       });
 
       showToast?.(

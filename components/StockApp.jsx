@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   onAuthStateChanged,
@@ -36,6 +36,49 @@ import InventoryHistoryView from "./InventoryHistoryView";
 import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
 import { parseProductReference } from "../lib/qr";
+
+function getDeviceRegistrationId() {
+  const storageKey = "vertice_push_device_id";
+  const existingId = window.localStorage.getItem(storageKey);
+  if (existingId) return existingId;
+
+  const generatedId =
+    globalThis.crypto?.randomUUID?.() ||
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(storageKey, generatedId);
+  return generatedId;
+}
+
+async function showForegroundPush(payload) {
+  if (
+    typeof window === "undefined" ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted"
+  ) {
+    return;
+  }
+
+  const title = payload?.notification?.title || "Vertice Stok";
+  const body = payload?.notification?.body || "Yeni bir bildiriminiz var.";
+  const options = {
+    body,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: payload?.data?.notificationId || payload?.data?.type || "vertice-stok",
+    data: { url: payload?.data?.url || "/" },
+  };
+
+  try {
+    const registration = await navigator.serviceWorker?.ready;
+    if (registration) {
+      await registration.showNotification(title, options);
+      return;
+    }
+    new Notification(title, options);
+  } catch (error) {
+    console.debug("Foreground push could not be displayed:", error);
+  }
+}
 
 /*
 
@@ -351,6 +394,7 @@ export default function StockApp() {
             `${title}: ${body}`,
             payload?.data?.priority === "critical" ? "error" : "success"
           );
+          void showForegroundPush(payload);
         });
         if (active) {
           unsubscribe = unsubscribeFunction;
@@ -377,7 +421,82 @@ export default function StockApp() {
   =========================================
   */
 
+  const registerCurrentDeviceForPush = useCallback(
+    async ({ interactive = false } = {}) => {
+      if (!user || !dbUser) return false;
+
+      if (
+        typeof window === "undefined" ||
+        !("Notification" in window) ||
+        (!interactive && Notification.permission !== "granted")
+      ) {
+        return false;
+      }
+
+      try {
+        const token = await getFCMToken();
+        if (!token) throw new Error("FCM_TOKEN_EMPTY");
+
+        const deviceId = getDeviceRegistrationId();
+        await setDoc(
+          doc(getPublicCollection("devices"), `${user.uid}_${deviceId}`),
+          {
+            uid: user.uid,
+            userName: dbUser.name || "",
+            role: dbUser.role || "personel",
+            token,
+            deviceId,
+            notificationsEnabled: true,
+            platform: navigator.userAgentData?.platform || navigator.platform || "web",
+            userAgent: navigator.userAgent || "",
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        setNotificationStatus("granted");
+        return true;
+      } catch (error) {
+        console.error("Push device registration failed:", error);
+        if (error?.message === "NOTIFICATION_PERMISSION_DENIED") {
+          setNotificationStatus("denied");
+        }
+        return false;
+      }
+    },
+    [dbUser, user]
+  );
+
   const handleEnableNotifications = async () => {
+    setNotificationLoading(true);
+    const registered = await registerCurrentDeviceForPush({ interactive: true });
+    setNotificationLoading(false);
+
+    if (registered) {
+      showToast("Telefon bildirimleri etkinleştirildi.", "success");
+      return;
+    }
+
+    showToast(
+      "Bildirim cihazı kaydedilemedi. Tarayıcı izinlerini ve Vercel ayarlarını kontrol edin.",
+      "error"
+    );
+  };
+
+  useEffect(() => {
+    if (
+      !user ||
+      !dbUser ||
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted"
+    ) {
+      return;
+    }
+
+    registerCurrentDeviceForPush();
+  }, [dbUser, registerCurrentDeviceForPush, user]);
+
+  const legacyHandleEnableNotifications = async () => {
     if (!user) {
       showToast("Kullanıcı oturumu bulunamadı.", "error");
       return;
