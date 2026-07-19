@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #030712;
-  --foreground: #f3f4f6;
+  --background: #f6f7ff;
+  --foreground: #20213a;
+  --primary: #8646ee;
+  --primary-strong: #7435df;
 }
 
 * {
@@ -19,7 +21,7 @@ body {
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow-x: hidden;
 }
 
@@ -42,7 +44,87 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #6b7280;
+  color: #a6a6c4;
+}
+
+/* Soft & Colorful design system: existing component structure is intentionally
+   preserved; these semantic overrides apply the third visual direction across
+   dashboard, inventory, product, scanner, and report screens. */
+.bg-gray-950 { background-color: #f6f7ff !important; }
+.bg-gray-900 { background-color: #ffffff !important; }
+.bg-gray-800 { background-color: #f0efff !important; }
+.bg-gray-700 { background-color: #e5e2ff !important; }
+.bg-gray-950\/50, .bg-gray-900\/50 { background-color: rgba(255,255,255,.78) !important; }
+.border-gray-900, .border-gray-800, .border-gray-700 { border-color: #e8e6f8 !important; }
+.text-white, .text-gray-100 { color: #22213d !important; }
+.text-gray-200, .text-gray-300 { color: #54516f !important; }
+.text-gray-400, .text-gray-500 { color: #85829d !important; }
+.text-gray-600, .text-gray-700 { color: #6c6988 !important; }
+
+.bg-blue-600 { background: linear-gradient(135deg, #a35af7, #7c3aed) !important; }
+.bg-blue-500 { background-color: #8d4df4 !important; }
+.hover\:bg-blue-700:hover { background: #7435df !important; }
+.text-blue-400, .text-blue-500 { color: #8545ef !important; }
+.border-blue-500, .border-blue-600 { border-color: #c4a6ff !important; }
+.bg-blue-500\/10, .bg-blue-600\/10 { background-color: #f0e7ff !important; }
+.bg-blue-600\/20 { background-color: #eadcff !important; }
+
+.bg-green-500\/10 { background-color: #e3faed !important; }
+.border-green-500\/20, .border-green-500\/30 { border-color: #b7edcf !important; }
+.text-green-400, .text-green-500 { color: #20a765 !important; }
+.bg-red-500\/10 { background-color: #fff0f1 !important; }
+.border-red-500\/20, .border-red-500\/30 { border-color: #ffc9d0 !important; }
+.text-red-400, .text-red-500 { color: #ef5b6b !important; }
+
+/* Dashboard-specific details from the soft & colorful direction. */
+.soft-dashboard__header {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, .88) 100%) !important;
+  box-shadow: 0 8px 28px rgba(85, 59, 139, .06) !important;
+}
+
+.soft-dashboard__primary-stat {
+  position: relative;
+  overflow: hidden;
+  color: white;
+  background: linear-gradient(135deg, #a75df5 0%, #7b3de3 100%);
+  box-shadow: 0 12px 24px rgba(132, 70, 238, .22);
+}
+
+.soft-dashboard__primary-stat::after {
+  content: "";
+  position: absolute;
+  inset: auto -22px -35px auto;
+  width: 115px;
+  height: 115px;
+  border: 16px solid rgba(255, 255, 255, .13);
+  border-radius: 50%;
+}
+
+.soft-dashboard__primary-stat .text-white,
+.soft-dashboard__primary-stat .text-gray-500 {
+  color: #ffffff !important;
+}
+
+.soft-dashboard__critical-stat {
+  background: #effcf4 !important;
+  border-color: #d6f4e1 !important;
+}
+
+.soft-dashboard__critical-stat + .bg-gray-950 {
+  background: #fff4f5 !important;
+  border-color: #ffe1e5 !important;
+}
+
+.soft-dashboard nav {
+  box-shadow: 0 -6px 22px rgba(74, 56, 121, .06);
+}
+
+button, input, select, textarea { transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
+input, select, textarea { color: #302d50 !important; }
+input:focus, select:focus, textarea:focus { border-color: #ad81fa !important; box-shadow: 0 0 0 3px rgba(167, 112, 246, .14); }
+
+@media (min-width: 768px) {
+  body { background: linear-gradient(135deg, #f7f8ff 0%, #fbf7ff 48%, #f3f8ff 100%); }
 }
 
 @media print {

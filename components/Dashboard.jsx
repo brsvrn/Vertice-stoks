@@ -95,13 +95,13 @@ export default function Dashboard({
   );
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-gray-100">
+    <div className="soft-dashboard flex flex-col h-full bg-gray-950 text-gray-100">
       {/* HEADER */}
-      <header className="bg-gray-900 border-b border-gray-800 rounded-b-3xl shadow-xl relative z-10">
+      <header className="soft-dashboard__header bg-gray-900 border-b border-gray-800 rounded-b-3xl shadow-xl relative z-10">
         <div className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="min-w-0">
-              <h1 className="text-2xl font-black text-white tracking-tight">
+              <h1 className="text-sm font-black text-white tracking-tight">
                 Vertice Stok
               </h1>
 
@@ -134,18 +134,18 @@ export default function Dashboard({
           </div>
 
           {/* ÖZET KARTLARI */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="soft-dashboard__primary-stat col-span-2 rounded-2xl p-4">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
                 Ürün
               </p>
 
-              <p className="text-xl font-black text-white mt-1">
+              <p className="text-3xl font-black text-white mt-1">
                 {products.length}
               </p>
             </div>
 
-            <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
+            <div className="soft-dashboard__critical-stat bg-gray-950 border border-gray-800 rounded-xl p-3">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
                 Toplam Stok
               </p>
