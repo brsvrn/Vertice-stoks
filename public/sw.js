@@ -1,10 +1,11 @@
-const CACHE_NAME = "vertice-stok-v1";
+const CACHE_NAME = "vertice-stok-v2";
 
 const APP_SHELL = [
   "/",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/offline.html",
 ];
 
 self.addEventListener("install", (event) => {
@@ -36,9 +37,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        return (await caches.match(event.request)) || caches.match("/offline.html");
+      })
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+      return fetch(event.request).then((response) => {
+        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      });
     })
   );
 });

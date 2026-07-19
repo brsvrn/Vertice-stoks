@@ -1,32 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
+import { generateQRCode } from "../lib/qr";
 
 export default function LabelPreview({ product }) {
   const [qrImage, setQrImage] = useState("");
 
   useEffect(() => {
-    generateQR();
-  }, [product]);
-
-  async function generateQR() {
-    try {
-      const value =
-        product.qrNo ||
-        product.id ||
-        product.name;
-
-      const image = await QRCode.toDataURL(value, {
-        width: 220,
-        margin: 1,
+    let active = true;
+    generateQRCode(product.id)
+      .then((image) => active && setQrImage(image))
+      .catch((error) => {
+        console.error("Etiket QR kodu üretilemedi:", error);
+        active && setQrImage("");
       });
 
-      setQrImage(image);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
+
 
   return (
     <div
