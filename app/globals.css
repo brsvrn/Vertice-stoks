@@ -133,7 +133,7 @@ textarea::placeholder {
 
 .scanner-focus-window {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: min(72vw, 270px);
   aspect-ratio: 1;
   border: 1px solid rgba(205, 189, 255, .64);

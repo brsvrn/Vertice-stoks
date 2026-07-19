@@ -234,7 +234,7 @@ export default function QRScannerModal({
           <>
             <div className="scanner-viewport relative min-h-[320px] bg-black">
               <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />
-              {status === "scanning" && (
+              {(status === "starting" || status === "scanning") && (
                 <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
                   <p className="mb-6 rounded-full bg-black/45 px-4 py-2 text-sm font-bold text-white backdrop-blur-sm">
                     Barkodu çerçevenin içine getirin
