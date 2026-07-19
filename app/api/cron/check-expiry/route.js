@@ -704,18 +704,20 @@ export async function GET(request) {
             tokens:
               uniqueTokens,
 
-            notification: {
-              title:
-                notification.title,
-
-              body:
-                notification.body,
-            },
-
             data: {
               notificationId:
                 String(
                   notification.id
+                ),
+
+              title:
+                String(
+                  notification.title
+                ),
+
+              body:
+                String(
+                  notification.body
                 ),
 
               type:
@@ -737,25 +739,15 @@ export async function GET(request) {
 
               url:
                 "/",
+
+              priority:
+                notification.type ===
+                  "CRITICAL_STOCK"
+                  ? "critical"
+                  : "normal",
             },
 
             webpush: {
-              notification: {
-                icon:
-                  "/icon-192.png",
-
-                badge:
-                  "/icon-192.png",
-
-                tag:
-                  String(
-                    notification.id
-                  ),
-
-                renotify:
-                  false,
-              },
-
               fcmOptions: {
                 link:
                   "/",
