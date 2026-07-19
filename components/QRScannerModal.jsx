@@ -15,6 +15,20 @@ function chooseRearCamera(devices) {
   );
 }
 
+function getScannerConstraints(cameraId) {
+  return {
+    audio: false,
+    video: {
+      ...(cameraId
+        ? { deviceId: { exact: cameraId } }
+        : { facingMode: { ideal: "environment" } }),
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      aspectRatio: { ideal: 16 / 9 },
+    },
+  };
+}
+
 export default function QRScannerModal({
   title = "Ürün Ara / Okut",
   onClose,
@@ -23,6 +37,7 @@ export default function QRScannerModal({
   const videoRef = useRef(null);
   const readerRef = useRef(null);
   const controlsRef = useRef(null);
+  const trackRef = useRef(null);
   const lastScanRef = useRef({ value: "", timestamp: 0 });
   const mountedRef = useRef(true);
 
@@ -32,10 +47,15 @@ export default function QRScannerModal({
   const [error, setError] = useState("");
   const [manualMode, setManualMode] = useState(false);
   const [manualCode, setManualCode] = useState("");
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
 
   const stopScanner = useCallback(() => {
     controlsRef.current?.stop();
     controlsRef.current = null;
+    trackRef.current = null;
+    setTorchAvailable(false);
+    setTorchEnabled(false);
 
     const stream = videoRef.current?.srcObject;
     if (stream instanceof MediaStream) {
@@ -79,17 +99,20 @@ export default function QRScannerModal({
         setError("");
         stopScanner();
 
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        });
+        const permissionStream = await navigator.mediaDevices.getUserMedia(
+          getScannerConstraints()
+        );
+        const grantedCameraId = permissionStream
+          .getVideoTracks()[0]
+          ?.getSettings?.().deviceId;
         permissionStream.getTracks().forEach((track) => track.stop());
 
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
           (device) => device.kind === "videoinput"
         );
         const fallbackCamera = chooseRearCamera(devices);
-        const cameraId = requestedCameraId || fallbackCamera?.deviceId;
+        const cameraId =
+          requestedCameraId || grantedCameraId || fallbackCamera?.deviceId;
 
         if (!cameraId) {
           throw new Error("CAMERA_NOT_FOUND");
@@ -107,8 +130,8 @@ export default function QRScannerModal({
         });
         readerRef.current = reader;
 
-        controlsRef.current = await reader.decodeFromVideoDevice(
-          cameraId,
+        controlsRef.current = await reader.decodeFromConstraints(
+          getScannerConstraints(cameraId),
           videoRef.current,
           (result, scanError) => {
             if (result) {
@@ -121,6 +144,24 @@ export default function QRScannerModal({
             }
           }
         );
+
+        const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
+        trackRef.current = track || null;
+
+        const capabilities = track?.getCapabilities?.() || {};
+        setTorchAvailable(Boolean(capabilities.torch));
+
+        if (capabilities.focusMode?.includes("continuous")) {
+          try {
+            await track.applyConstraints({
+              advanced: [{ focusMode: "continuous" }],
+            });
+          } catch (focusError) {
+            console.debug("Continuous focus is unavailable:", focusError);
+          }
+        }
+
+        await videoRef.current?.play?.().catch(() => undefined);
 
         if (mountedRef.current) setStatus("scanning");
       } catch (cameraError) {
@@ -164,6 +205,20 @@ export default function QRScannerModal({
     reportScan(value);
   };
 
+  const toggleTorch = async () => {
+    const track = trackRef.current;
+    if (!track?.applyConstraints) return;
+
+    try {
+      const nextValue = !torchEnabled;
+      await track.applyConstraints({ advanced: [{ torch: nextValue }] });
+      setTorchEnabled(nextValue);
+    } catch (torchError) {
+      console.debug("Torch could not be changed:", torchError);
+      setTorchAvailable(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-black text-white">
       <header className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-5 py-4">
@@ -177,8 +232,22 @@ export default function QRScannerModal({
       <main className="flex-1 overflow-y-auto">
         {!manualMode ? (
           <>
-            <div className="relative min-h-[320px] bg-black">
+            <div className="scanner-viewport relative min-h-[320px] bg-black">
               <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />
+              {(status === "starting" || status === "scanning") && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
+                  <p className="mb-6 rounded-full bg-black/45 px-4 py-2 text-sm font-bold text-white backdrop-blur-sm">
+                    Barkodu çerçevenin içine getirin
+                  </p>
+                  <div className="scanner-focus-window" aria-hidden="true">
+                    <i className="scanner-corner scanner-corner--top-left" />
+                    <i className="scanner-corner scanner-corner--top-right" />
+                    <i className="scanner-corner scanner-corner--bottom-left" />
+                    <i className="scanner-corner scanner-corner--bottom-right" />
+                    <span className="scanner-focus-line" />
+                  </div>
+                </div>
+              )}
               {(status === "permission" || status === "starting") && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 px-6 text-center">
                   <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-blue-500" />
@@ -189,6 +258,15 @@ export default function QRScannerModal({
 
             <div className="space-y-4 px-6 py-6 text-center">
               {status === "scanning" && <p className="font-bold text-green-400">● Kamera aktif — QR veya barkodu çerçeveye getirin</p>}
+              {torchAvailable && status === "scanning" && (
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-3 font-bold text-gray-300"
+                >
+                  {torchEnabled ? "Feneri kapat" : "Feneri aÃ§"}
+                </button>
+              )}
               {cameras.length > 1 && (
                 <label className="block text-left text-sm text-gray-400">
                   Kamera
