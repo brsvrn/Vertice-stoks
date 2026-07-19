@@ -232,8 +232,22 @@ export default function QRScannerModal({
       <main className="flex-1 overflow-y-auto">
         {!manualMode ? (
           <>
-            <div className="relative min-h-[320px] bg-black">
+            <div className="scanner-viewport relative min-h-[320px] bg-black">
               <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />
+              {status === "scanning" && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
+                  <p className="mb-6 rounded-full bg-black/45 px-4 py-2 text-sm font-bold text-white backdrop-blur-sm">
+                    Barkodu çerçevenin içine getirin
+                  </p>
+                  <div className="scanner-focus-window" aria-hidden="true">
+                    <i className="scanner-corner scanner-corner--top-left" />
+                    <i className="scanner-corner scanner-corner--top-right" />
+                    <i className="scanner-corner scanner-corner--bottom-left" />
+                    <i className="scanner-corner scanner-corner--bottom-right" />
+                    <span className="scanner-focus-line" />
+                  </div>
+                </div>
+              )}
               {(status === "permission" || status === "starting") && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 px-6 text-center">
                   <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-blue-500" />

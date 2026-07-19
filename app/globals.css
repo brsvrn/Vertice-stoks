@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7ff;
-  --foreground: #20213a;
-  --primary: #8646ee;
-  --primary-strong: #7435df;
+  --background: #f9f9ff;
+  --foreground: #151c27;
+  --primary: #632ce5;
+  --primary-strong: #4f00d0;
+  --surface: #ffffff;
+  --surface-low: #f0f3ff;
+  --surface-container: #e7eefe;
+  --outline: #cac3d8;
 }
 
 * {
@@ -50,23 +54,23 @@ textarea::placeholder {
 /* Soft & Colorful design system: existing component structure is intentionally
    preserved; these semantic overrides apply the third visual direction across
    dashboard, inventory, product, scanner, and report screens. */
-.bg-gray-950 { background-color: #f6f7ff !important; }
+.bg-gray-950 { background-color: var(--background) !important; }
 .bg-gray-900 { background-color: #ffffff !important; }
-.bg-gray-800 { background-color: #f0efff !important; }
-.bg-gray-700 { background-color: #e5e2ff !important; }
+.bg-gray-800 { background-color: var(--surface-low) !important; }
+.bg-gray-700 { background-color: #e2e8f8 !important; }
 .bg-gray-950\/50, .bg-gray-900\/50 { background-color: rgba(255,255,255,.78) !important; }
-.border-gray-900, .border-gray-800, .border-gray-700 { border-color: #e8e6f8 !important; }
-.text-white, .text-gray-100 { color: #22213d !important; }
-.text-gray-200, .text-gray-300 { color: #54516f !important; }
-.text-gray-400, .text-gray-500 { color: #85829d !important; }
-.text-gray-600, .text-gray-700 { color: #6c6988 !important; }
+.border-gray-900, .border-gray-800, .border-gray-700 { border-color: var(--outline) !important; }
+.text-white, .text-gray-100 { color: var(--foreground) !important; }
+.text-gray-200, .text-gray-300 { color: #494455 !important; }
+.text-gray-400, .text-gray-500 { color: #6f697d !important; }
+.text-gray-600, .text-gray-700 { color: #494455 !important; }
 
-.bg-blue-600 { background: linear-gradient(135deg, #a35af7, #7c3aed) !important; }
-.bg-blue-500 { background-color: #8d4df4 !important; }
-.hover\:bg-blue-700:hover { background: #7435df !important; }
-.text-blue-400, .text-blue-500 { color: #8545ef !important; }
-.border-blue-500, .border-blue-600 { border-color: #c4a6ff !important; }
-.bg-blue-500\/10, .bg-blue-600\/10 { background-color: #f0e7ff !important; }
+.bg-blue-600 { background: linear-gradient(135deg, #7c4dff, #632ce5) !important; }
+.bg-blue-500 { background-color: var(--primary) !important; }
+.hover\:bg-blue-700:hover { background: var(--primary-strong) !important; }
+.text-blue-400, .text-blue-500 { color: var(--primary) !important; }
+.border-blue-500, .border-blue-600 { border-color: #cdbdff !important; }
+.bg-blue-500\/10, .bg-blue-600\/10 { background-color: #e8deff !important; }
 .bg-blue-600\/20 { background-color: #eadcff !important; }
 
 .bg-green-500\/10 { background-color: #e3faed !important; }
@@ -117,6 +121,54 @@ textarea::placeholder {
 
 .soft-dashboard nav {
   box-shadow: 0 -6px 22px rgba(74, 56, 121, .06);
+}
+
+.scanner-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(8, 9, 18, .42), transparent 30%, transparent 70%, rgba(8, 9, 18, .56));
+}
+
+.scanner-focus-window {
+  position: relative;
+  z-index: 1;
+  width: min(72vw, 270px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(205, 189, 255, .64);
+  border-radius: 18px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, .26), 0 0 30px rgba(124, 77, 255, .38);
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-color: #7c4dff;
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-corner--top-left { top: -3px; left: -3px; border-top-width: 5px; border-left-width: 5px; border-top-left-radius: 15px; }
+.scanner-corner--top-right { top: -3px; right: -3px; border-top-width: 5px; border-right-width: 5px; border-top-right-radius: 15px; }
+.scanner-corner--bottom-left { bottom: -3px; left: -3px; border-bottom-width: 5px; border-left-width: 5px; border-bottom-left-radius: 15px; }
+.scanner-corner--bottom-right { right: -3px; bottom: -3px; border-right-width: 5px; border-bottom-width: 5px; border-bottom-right-radius: 15px; }
+
+.scanner-focus-line {
+  position: absolute;
+  right: 14px;
+  left: 14px;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d7c9ff, transparent);
+  box-shadow: 0 0 14px #9f78ff;
+  animation: scanner-line 2.1s ease-in-out infinite;
+}
+
+@keyframes scanner-line {
+  0%, 100% { transform: translateY(-72px); opacity: .35; }
+  50% { transform: translateY(72px); opacity: 1; }
 }
 
 button, input, select, textarea { transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
