@@ -6,16 +6,10 @@ export default function LabelGrid({
 }) {
   return (
     <div
-      className="
-        bg-white
-        rounded-xl
-        p-6
-        shadow-lg
-        overflow-hidden
-      "
+      className="label-sheet bg-white rounded-xl p-4 shadow-lg overflow-x-auto"
     >
       <div
-        className="grid gap-6"
+        className="label-grid grid gap-4"
         style={{
           gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))`,
         }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Printer, FileDown, ArrowLeft, Search } from "lucide-react";
 import LabelPreview from "./LabelPreview";
 import LabelGrid from "./LabelGrid";
@@ -8,13 +8,22 @@ import { createPDF } from "../lib/pdf";
 import { printLabels } from "../lib/print";
 
 export default function PrintCenterView({
+  product,
   products = [],
   onBack,
+  showToast,
 }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const printRef = useRef(null);
+
+  useEffect(() => {
+    if (product?.id) {
+      setSelected([product.id]);
+    }
+  }, [product?.id]);
 
   const filteredProducts = useMemo(() => {
     const text = search.trim().toLowerCase();
@@ -41,9 +50,37 @@ export default function PrintCenterView({
     );
   };
 
-  const selectedProducts = filteredProducts.filter(
+  const selectedProducts = products.filter(
     (p) => selected.includes(p.id)
   );
+
+  const handlePrint = () => {
+    try {
+      printLabels(printRef);
+    } catch (error) {
+      console.error("Label print failed:", error);
+      showToast?.(
+        "Yazdırma penceresi açılamadı. Tarayıcı açılır pencere iznini kontrol edin.",
+        "error"
+      );
+    }
+  };
+
+  const handlePDF = async () => {
+    setIsExporting(true);
+    try {
+      await createPDF(printRef);
+      showToast?.("A4 etiket PDF dosyası indirildi.", "success");
+    } catch (error) {
+      console.error("Label PDF creation failed:", error);
+      showToast?.(
+        "PDF oluşturulamadı. Etiketlerin yüklenmesini bekleyip tekrar deneyin.",
+        "error"
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -173,9 +210,8 @@ export default function PrintCenterView({
 
               <button
 
-                onClick={()=>
-                  printLabels(printRef)
-                }
+                onClick={handlePrint}
+                disabled={isExporting}
 
                 className="bg-blue-600 rounded-xl py-4 font-bold flex items-center justify-center gap-2"
               >
@@ -188,16 +224,15 @@ export default function PrintCenterView({
 
               <button
 
-                onClick={()=>
-                  createPDF(printRef)
-                }
+                onClick={handlePDF}
+                disabled={isExporting}
 
-                className="bg-green-600 rounded-xl py-4 font-bold flex items-center justify-center gap-2"
+                className="bg-green-600 rounded-xl py-4 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
               >
 
                 <FileDown size={20}/>
 
-                PDF
+                {isExporting ? "PDF hazırlanıyor..." : "PDF"}
 
               </button>
 

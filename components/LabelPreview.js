@@ -23,20 +23,8 @@ export default function LabelPreview({ product }) {
 
   return (
     <div
-      className="
-      w-[300px]
-      h-[180px]
-      bg-white
-      text-black
-      rounded-xl
-      border
-      border-gray-300
-      shadow
-      p-4
-      flex
-      flex-col
-      justify-between
-      "
+      data-label
+      className="label-card bg-white text-black rounded-xl border border-gray-300 shadow p-4 flex flex-col justify-between"
     >
       <div>
 
