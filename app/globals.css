@@ -123,6 +123,21 @@ textarea::placeholder {
   box-shadow: 0 -6px 22px rgba(74, 56, 121, .06);
 }
 
+/* A4 label preview: the PDF exporter places these cards in a 2 x 5 grid. */
+.label-sheet {
+  min-width: 640px;
+}
+
+.label-grid {
+  grid-template-columns: repeat(2, 300px) !important;
+}
+
+.label-card {
+  width: 300px;
+  height: 180px;
+  flex: 0 0 auto;
+}
+
 .scanner-viewport::after {
   content: "";
   position: absolute;
