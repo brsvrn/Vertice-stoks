@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -14,6 +15,8 @@ import {
   Package,
   Plus,
   Search,
+  Table2,
+  Printer,
   Warehouse,
   Wine,
   X,
@@ -36,6 +39,7 @@ import {
 
 import QRScannerModal from "./QRScannerModal";
 import { parseProductReference } from "../lib/qr";
+import { printInventoryTable } from "../lib/inventoryPrint";
 
 export default function InventoryView({
   products = [],
@@ -54,6 +58,9 @@ export default function InventoryView({
 
   const [counts, setCounts] =
     useState({});
+
+  const [activeSection, setActiveSection] =
+    useState("count");
 
   const [
     isSaving,
@@ -81,27 +88,66 @@ export default function InventoryView({
    * =====================================
    */
 
-  const getSystemStock = (
-    productId
-  ) => {
-    return batches
-      .filter(
-        (batch) =>
-          batch.productId ===
-            productId &&
-          (batch.location ||
-            "DEPO") ===
-            location
-      )
-      .reduce(
-        (total, batch) =>
-          total +
-          Number(
-            batch.quantity ||
-              0
-          ),
-        0
+  const stockByProduct = useMemo(() => {
+    return batches.reduce((stockMap, batch) => {
+      if (!batch.productId) {
+        return stockMap;
+      }
+
+      const productStock = stockMap[batch.productId] || {
+        DEPO: 0,
+        BAR: 0,
+      };
+
+      const stockLocation =
+        String(batch.location || "DEPO").toUpperCase() === "BAR"
+          ? "BAR"
+          : "DEPO";
+
+      productStock[stockLocation] += Number(batch.quantity || 0);
+      stockMap[batch.productId] = productStock;
+
+      return stockMap;
+    }, {});
+  }, [batches]);
+
+  const getSystemStock = useCallback((productId) => {
+    return Number(stockByProduct[productId]?.[location] || 0);
+  }, [location, stockByProduct]);
+
+  const inventoryTableRows = useMemo(() => {
+    return products
+      .map((product) => {
+        const depotStock = Number(stockByProduct[product.id]?.DEPO || 0);
+        const barStock = Number(stockByProduct[product.id]?.BAR || 0);
+
+        return {
+          barcode:
+            product.qrNo ||
+            product.barcode ||
+            product.barcodeNo ||
+            "-",
+          name: product.name || "İsimsiz ürün",
+          depotStock,
+          barStock,
+          totalStock: depotStock + barStock,
+        };
+      })
+      .sort((first, second) =>
+        first.name.localeCompare(second.name, "tr-TR")
       );
+  }, [products, stockByProduct]);
+
+  const handlePrintTable = (mode) => {
+    try {
+      printInventoryTable(inventoryTableRows, mode);
+    } catch (error) {
+      console.error("Sayım tablosu yazdırma hatası:", error);
+      showToast?.(
+        "Yazdırma penceresi açılamadı. Tarayıcınızın açılır pencere iznini kontrol edin.",
+        "error"
+      );
+    }
   };
 
   /*
@@ -1359,6 +1405,32 @@ export default function InventoryView({
 
           </div>
 
+          <div className="grid grid-cols-2 gap-2 mt-5 bg-gray-950 border border-gray-800 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setActiveSection("count")}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                activeSection === "count"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-500"
+              }`}
+            >
+              Sayım Yap
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection("table")}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+                activeSection === "table"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-500"
+              }`}
+            >
+              <Table2 size={16} />
+              Stok Tablosu
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 mt-5">
 
             <button
@@ -1507,6 +1579,76 @@ export default function InventoryView({
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 pb-32">
+
+        {activeSection === "table" ? (
+          <section className="space-y-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-black text-lg">Güncel Stok Tablosu</h2>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Depo ve bar stokları anlık verilerle hesaplanır.
+                  </p>
+                </div>
+                <span className="shrink-0 bg-blue-500/10 text-blue-400 rounded-lg px-2.5 py-1 text-xs font-bold">
+                  {inventoryTableRows.length} ürün
+                </span>
+              </div>
+
+              <div className="grid gap-2 mt-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handlePrintTable("current")}
+                  className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} />
+                  Güncel Stoğu Yazdır
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrintTable("count")}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <ClipboardCheck size={18} />
+                  Boş Sayım Formu Yazdır
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-left text-sm">
+                  <thead className="bg-gray-950 text-gray-500 text-[10px] uppercase tracking-wide">
+                    <tr>
+                      <th className="px-4 py-3 font-bold">Barkod</th>
+                      <th className="px-4 py-3 font-bold">Ürün</th>
+                      <th className="px-4 py-3 font-bold text-right">Depo</th>
+                      <th className="px-4 py-3 font-bold text-right">Bar</th>
+                      <th className="px-4 py-3 font-bold text-right">Toplam</th>
+                      <th className="px-4 py-3 font-bold text-center">Sayım</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {inventoryTableRows.map((row) => (
+                      <tr key={`${row.barcode}-${row.name}`}>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-400">{row.barcode}</td>
+                        <td className="px-4 py-3 font-bold text-white">{row.name}</td>
+                        <td className="px-4 py-3 text-right text-gray-300">{row.depotStock}</td>
+                        <td className="px-4 py-3 text-right text-gray-300">{row.barStock}</td>
+                        <td className="px-4 py-3 text-right font-black text-blue-400">{row.totalStock}</td>
+                        <td className="px-4 py-3"><div className="h-8 min-w-20 rounded-lg border border-dashed border-gray-700" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {inventoryTableRows.length === 0 && (
+                <p className="px-4 py-10 text-center text-gray-500">Tablolanacak ürün bulunamadı.</p>
+              )}
+            </div>
+          </section>
+        ) : (
+          <>
 
         <div className="space-y-3">
 
@@ -1718,8 +1860,12 @@ export default function InventoryView({
           </div>
         )}
 
+          </>
+        )}
+
       </main>
 
+      {activeSection === "count" && (
       <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4">
 
         <button
@@ -1744,6 +1890,7 @@ export default function InventoryView({
         </button>
 
       </div>
+      )}
 
     </div>
   );
