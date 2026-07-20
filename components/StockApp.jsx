@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   linkWithPopup,
+  signInWithCredential,
   signInWithPopup,
   signInAnonymously,
   signOut,
@@ -614,10 +615,21 @@ export default function StockApp() {
       }
     } catch (error) {
       console.error("Google giriş hatası:", error);
+      if (error?.code === "auth/credential-already-in-use") {
+        try {
+          const credential = GoogleAuthProvider.credentialFromError(error);
+          if (!credential) throw error;
+          await signInWithCredential(auth, credential);
+          setGoogleSignInError("");
+          return;
+        } catch (migrationError) {
+          console.error("Mevcut Google hesabına geçiş hatası:", migrationError);
+        }
+      }
       const errorMessages = {
         "auth/operation-not-allowed": "Google ile giriş Firebase Authentication ayarlarında etkin değil.",
         "auth/unauthorized-domain": "Bu Vercel alan adı Firebase Authentication için yetkilendirilmemiş.",
-        "auth/credential-already-in-use": "Bu Google hesabı başka bir Vertice kullanıcısıyla bağlı.",
+        "auth/credential-already-in-use": "Google hesabı daha önce bağlanmış; profil kurulumunu tamamlayarak devam edin.",
         "auth/account-exists-with-different-credential": "Bu e-posta başka bir giriş yöntemiyle kayıtlı.",
         "auth/network-request-failed": "Google girişi için internet bağlantısı gerekli.",
         "auth/web-storage-unsupported": "Tarayıcı depolama izni kapalı. Gizli sekmeyi kapatıp tekrar deneyin.",
