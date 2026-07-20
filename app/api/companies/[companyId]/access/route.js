@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 
 import { getAdminAuth, getAdminDb } from "../../../../../lib/firebaseAdmin";
 
@@ -111,7 +112,10 @@ export async function DELETE(request, { params }) {
       if (member.role !== "OWNER") throw new Error("FORBIDDEN");
       const target = await companyRef.collection("members").doc(String(body.uid)).get();
       if (target.data()?.role === "OWNER") return NextResponse.json({ error: "OWNER işletmeden çıkarılamaz." }, { status: 409 });
-      await target.ref.delete();
+      const batch = db.batch();
+      batch.delete(target.ref);
+      batch.set(db.collection("users").doc(String(body.uid)), { companyIds: FieldValue.arrayRemove(companyId), updatedAt: new Date().toISOString() }, { merge: true });
+      await batch.commit();
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "Silinecek kayıt belirtilmedi." }, { status: 400 });

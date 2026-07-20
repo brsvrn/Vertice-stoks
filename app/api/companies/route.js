@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 
 import { getAdminAuth, getAdminDb } from "../../../lib/firebaseAdmin";
 
@@ -44,19 +45,19 @@ async function createCompany(db, user, { name, companyId }) {
   batch.set(companyRef.collection("members").doc(user.uid), membership, { merge: true });
   batch.set(codeRef, { companyId: companyRef.id, status: "ACTIVE", createdAt: now });
   batch.set(companyRef.collection("settings").doc("access"), { joinCodeHash: codeRef.id, joinCodeUpdatedAt: now }, { merge: true });
-  batch.set(db.collection("users").doc(user.uid), { email: user.email || "", displayName: user.name || "", lastCompanyId: companyRef.id, updatedAt: now }, { merge: true });
+  batch.set(db.collection("users").doc(user.uid), { email: user.email || "", displayName: user.name || "", companyIds: FieldValue.arrayUnion(companyRef.id), lastCompanyId: companyRef.id, updatedAt: now }, { merge: true });
   await batch.commit();
   return { company: { id: companyRef.id, ...company }, membership, joinCode };
 }
 
 async function listCompanies(db, user) {
-  const membershipSnapshot = await db.collectionGroup("members").where("uid", "==", user.uid).get();
-  const memberships = membershipSnapshot.docs.filter((item) => item.data()?.status === "ACTIVE");
-  const companies = await Promise.all(memberships.map(async (item) => {
-    const companyRef = item.ref.parent.parent;
-    const snapshot = await companyRef.get();
-    if (!snapshot.exists || snapshot.data()?.status !== "ACTIVE") return null;
-    return { id: snapshot.id, ...snapshot.data(), membership: item.data() };
+  const profile = await db.collection("users").doc(user.uid).get();
+  const companyIds = [...new Set([...(profile.data()?.companyIds || []), profile.data()?.lastCompanyId].filter(Boolean))];
+  const companies = await Promise.all(companyIds.map(async (companyId) => {
+    const companyRef = db.collection("companies").doc(companyId);
+    const [snapshot, membership] = await Promise.all([companyRef.get(), companyRef.collection("members").doc(user.uid).get()]);
+    if (!snapshot.exists || snapshot.data()?.status !== "ACTIVE" || !membership.exists || membership.data()?.status !== "ACTIVE") return null;
+    return { id: snapshot.id, ...snapshot.data(), membership: membership.data() };
   }));
   return companies.filter(Boolean);
 }
@@ -133,7 +134,7 @@ export async function POST(request) {
           }
         }
 
-        transaction.set(db.collection("users").doc(user.uid), { email: user.email || "", displayName: user.name || "", lastCompanyId: companyRef.id, updatedAt: now }, { merge: true });
+        transaction.set(db.collection("users").doc(user.uid), { email: user.email || "", displayName: user.name || "", companyIds: FieldValue.arrayUnion(companyRef.id), lastCompanyId: companyRef.id, updatedAt: now }, { merge: true });
         return { company: { id: companySnapshot.id, ...companySnapshot.data() }, membership };
       });
       return NextResponse.json(result);
@@ -143,7 +144,7 @@ export async function POST(request) {
       const companyId = String(body?.companyId || "");
       const membership = await db.collection("companies").doc(companyId).collection("members").doc(user.uid).get();
       if (!membership.exists || membership.data()?.status !== "ACTIVE") return NextResponse.json({ error: "Bu işletmeye erişiminiz bulunmuyor." }, { status: 403 });
-      await db.collection("users").doc(user.uid).set({ lastCompanyId: companyId, updatedAt: new Date().toISOString() }, { merge: true });
+      await db.collection("users").doc(user.uid).set({ companyIds: FieldValue.arrayUnion(companyId), lastCompanyId: companyId, updatedAt: new Date().toISOString() }, { merge: true });
       return NextResponse.json({ success: true });
     }
 
