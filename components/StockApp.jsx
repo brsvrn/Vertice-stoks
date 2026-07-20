@@ -571,19 +571,21 @@ export default function StockApp() {
   =========================================
   */
 
-  const handleCreateProfile = async (name, role) => {
+  const handleCreateProfile = async (name, role, adminPin = "") => {
     if (!user) {
       showToast("Kullanıcı oturumu bulunamadı.", "error");
       return;
     }
     try {
-      const userData = {
-        uid: user.uid,
-        name: name.trim(),
-        role,
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(getPublicCollection("users"), user.uid), userData);
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ name: name.trim(), role, adminPin }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Profil oluşturulamadı.");
+      const userData = payload.user;
       setDbUser(userData);
       setCurrentView("dashboard");
       showToast(`Hoş geldin, ${name}!`, "success");
