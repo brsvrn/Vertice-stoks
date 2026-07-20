@@ -127,6 +127,13 @@ export default function QRScannerModal({
     } catch (scanError) {
       nativeScannerRef.current = false;
       if (!mountedRef.current) return;
+      
+      const errMsg = String(scanError?.message || "").toLowerCase();
+      if (errMsg.includes("canceled") || errMsg.includes("cancelled")) {
+        onClose();
+        return;
+      }
+
       console.error("Android barkod tarama hatası:", scanError);
       setStatus("error");
       setError(
