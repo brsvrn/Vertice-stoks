@@ -64,7 +64,7 @@ async function showForegroundPush(payload) {
     return;
   }
 
-  const title = payload?.notification?.title || "Vertice Stok";
+  const title = payload?.notification?.title || "Envantra";
   const body = payload?.notification?.body || "Yeni bir bildiriminiz var.";
   const options = {
     body,
@@ -398,7 +398,7 @@ export default function StockApp() {
           const title =
             payload?.notification?.title ||
             payload?.data?.title ||
-            "Vertice Stok";
+            "Envantra";
           const body =
             payload?.notification?.body ||
             payload?.data?.body ||
@@ -1302,7 +1302,7 @@ export default function StockApp() {
       <main className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-gray-800 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <h1 className="text-xl font-black">Vertice Stok</h1>
+          <h1 className="text-xl font-black">Envantra</h1>
           <p className="text-gray-500 text-sm mt-2">Sistem yükleniyor...</p>
         </div>
       </main>
@@ -1322,7 +1322,7 @@ export default function StockApp() {
     return (
       <main className="flex items-center justify-center min-h-screen bg-gray-950 text-white p-4">
         <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
-          <h1 className="text-2xl font-black">Vertice Stok</h1>
+          <h1 className="text-2xl font-black">Envantra</h1>
           <p className="text-gray-400 mt-3">Firebase kullanıcı oturumu oluşturulamadı.</p>
           <button
             type="button"

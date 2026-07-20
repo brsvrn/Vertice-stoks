@@ -224,7 +224,7 @@ export default function QRScannerModal({
       <header className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-5 py-4">
         <div>
           <h1 className="text-xl font-black">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">Vertice Stok</p>
+          <p className="mt-1 text-sm text-gray-500">Envantra</p>
         </div>
         <button type="button" onClick={handleClose} aria-label="Tarayıcıyı kapat" className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-800 text-2xl">×</button>
       </header>

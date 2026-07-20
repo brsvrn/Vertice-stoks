@@ -101,7 +101,7 @@ export default function LabelPreview({ product }) {
         text-gray-500
         "
       >
-        Vertice Restaurant Stock System
+        Envantra Stok Yönetim Sistemi
       </div>
 
     </div>

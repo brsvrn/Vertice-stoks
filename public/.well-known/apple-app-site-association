@@ -3,7 +3,7 @@
     "details": [
       {
         "appIDs": ["TEAM_ID.com.example.verticestok"],
-        "components": [{ "/": "/product/*", "comment": "Vertice Stok product links" }]
+        "components": [{ "/": "/product/*", "comment": "Envantra product links" }]
       }
     ]
   }

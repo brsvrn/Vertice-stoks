@@ -38,7 +38,7 @@ export default function ProfileSetupView({
           </div>
 
           <h1 className="text-3xl font-bold mb-2">
-            Vertice Stok
+            Envantra
           </h1>
 
           <p className="text-gray-400 text-sm leading-relaxed">
@@ -144,7 +144,7 @@ export default function ProfileSetupView({
         </div>
 
         <p className="text-center text-gray-700 text-xs mt-6">
-          Vertice Stok Yönetim Sistemi
+          Envantra Stok Yönetim Sistemi
         </p>
       </div>
     </main>

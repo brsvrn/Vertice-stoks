@@ -1,4 +1,4 @@
-/* Vertice Stok - Firebase Cloud Messaging Service Worker */
+/* Envantra - Firebase Cloud Messaging Service Worker */
 
 importScripts(
   "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"
