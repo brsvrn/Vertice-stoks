@@ -64,7 +64,6 @@ export default function InventoryView({
 
   const [tableMode, setTableMode] =
     useState("current");
-
   const [
     isSaving,
     setIsSaving,
