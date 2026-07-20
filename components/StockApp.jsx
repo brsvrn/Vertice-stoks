@@ -150,6 +150,7 @@ export default function StockApp() {
   const [inventoryActionLoading, setInventoryActionLoading] = useState(false);
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
   const [googleSignInError, setGoogleSignInError] = useState("");
+  const [googleProfileReviewRequired, setGoogleProfileReviewRequired] = useState(false);
 
   const [
     permissionsSetupCompleted,
@@ -243,10 +244,14 @@ export default function StockApp() {
             );
             const userSnapshot = await getDoc(userReference);
             if (userSnapshot.exists()) {
-              setDbUser({
+              const profile = {
                 uid: firebaseUser.uid,
                 ...userSnapshot.data(),
-              });
+              };
+              setDbUser(profile);
+              const isGoogleUser = firebaseUser.providerData.some((provider) => provider.providerId === "google.com");
+              const reviewKey = `vertice_google_profile_reviewed_${firebaseUser.uid}`;
+              setGoogleProfileReviewRequired(isGoogleUser && !window.localStorage.getItem(reviewKey));
             } else {
               setDbUser(null);
             }
@@ -594,6 +599,8 @@ export default function StockApp() {
       if (!response.ok) throw new Error(payload?.error || "Profil oluşturulamadı.");
       const userData = payload.user;
       setDbUser(userData);
+      window.localStorage.setItem(`vertice_google_profile_reviewed_${user.uid}`, "true");
+      setGoogleProfileReviewRequired(false);
       setCurrentView("dashboard");
       showToast(`Hoş geldin, ${name}!`, "success");
     } catch (error) {
@@ -1342,11 +1349,16 @@ export default function StockApp() {
   =========================================
   */
 
-  if (!dbUser) {
+  if (!dbUser || googleProfileReviewRequired) {
     return (
       <>
         {toast && <Toast toast={toast} />}
-        <ProfileSetupView onSetup={handleCreateProfile} showToast={showToast} />
+        <ProfileSetupView
+          onSetup={handleCreateProfile}
+          showToast={showToast}
+          initialName={dbUser?.name || user.displayName || ""}
+          initialRole={dbUser?.role || "staff"}
+        />
       </>
     );
   }

@@ -6,9 +6,11 @@ import { Package, Lock } from "lucide-react";
 export default function ProfileSetupView({
   onSetup,
   showToast,
+  initialName = "",
+  initialRole = "staff",
 }) {
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("staff");
+  const [name, setName] = useState(initialName);
+  const [role, setRole] = useState(initialRole);
   const [adminPin, setAdminPin] = useState("");
 
   const handleRegister = async () => {
