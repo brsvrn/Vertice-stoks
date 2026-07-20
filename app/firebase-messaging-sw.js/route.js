@@ -35,8 +35,8 @@ firebase.initializeApp(
 const messaging = firebase.messaging();
 
 /* PWA cache and Firebase messaging must share a single root worker. */
-const CACHE_NAME = "vertice-stok-v3";
-const APP_SHELL = ["/", "/offline.html"];
+const CACHE_NAME = "vertice-stok-v4";
+const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -63,9 +63,12 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(async () =>
-        (await caches.match(event.request)) || caches.match("/offline.html")
-      )
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          return response;
+        })
+        .catch(async () => (await caches.match(event.request)) || caches.match("/offline.html"))
     );
     return;
   }
@@ -73,12 +76,15 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
-      return fetch(event.request).then((response) => {
-        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-        }
-        return response;
-      });
+      return fetch(event.request)
+        .then((response) => {
+          const url = new URL(event.request.url);
+          if (response.ok && url.origin === self.location.origin && !url.pathname.startsWith("/api/")) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() => caches.match("/offline.html"));
     })
   );
 });
