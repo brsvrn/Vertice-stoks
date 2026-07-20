@@ -23,6 +23,8 @@ export default function AdminAddProductView({
     category: "",
     minStock: "",
     shelfLocation: "",
+    supplier: "",
+    unit: "Adet",
     qrNo: scannedBarcode || "",
   });
 
@@ -80,6 +82,8 @@ export default function AdminAddProductView({
           minStock,
           shelfLocation:
             formData.shelfLocation.trim(),
+          supplier: formData.supplier.trim(),
+          unit: formData.unit.trim() || "Adet",
           qrNo,
           createdAt: new Date().toISOString(),
         }
@@ -254,6 +258,19 @@ export default function AdminAddProductView({
                 placeholder="Örn: A-01"
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Tedarikçi</label>
+              <input type="text" value={formData.supplier} onChange={(event) => handleChange("supplier", event.target.value)} placeholder="Örn: ABC Gıda" className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Birim</label>
+              <select value={formData.unit} onChange={(event) => handleChange("unit", event.target.value)} className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500">
+                <option>Adet</option><option>Kutu</option><option>Şişe</option><option>Kg</option><option>Litre</option>
+              </select>
             </div>
           </div>
 

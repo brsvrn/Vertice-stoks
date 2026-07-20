@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, ArrowDownRight, ArrowUpRight, BarChart3, Package, TriangleAlert } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, Package, TriangleAlert } from "lucide-react";
 
 export default function ReportsView({ products = [], batches = [], transactions = [], inventoryCounts = [], onBack }) {
   const summary = useMemo(() => {
@@ -23,13 +23,32 @@ export default function ReportsView({ products = [], batches = [], transactions 
   }, [batches, inventoryCounts, products, transactions]);
 
   const maximumProductMovement = Math.max(...summary.topProducts.map((item) => item.quantity), 1);
+  const exportReport = () => {
+    const lines = [
+      ["Vertice Stok Raporu", new Date().toLocaleString("tr-TR")],
+      ["Toplam stok", summary.stocks],
+      ["Son 30 gün stok girişi", summary.stockIn],
+      ["Son 30 gün stok çıkışı", summary.stockOut],
+      ["Kritik stoklu ürün", summary.critical.length],
+      [],
+      ["Ürün", "Son 30 gün hareket"],
+      ...summary.topProducts.map((item) => [item.product.name, item.quantity]),
+    ];
+    const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    link.download = `vertice-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-950 text-gray-100">
       <header className="bg-gray-900 border-b border-gray-800 p-5">
         <div className="flex items-center gap-4">
           <button type="button" onClick={onBack} className="w-11 h-11 rounded-xl bg-gray-800 flex items-center justify-center"><ArrowLeft size={22} /></button>
-          <div><h1 className="text-xl font-black">Raporlar</h1><p className="text-xs text-gray-500 mt-1">Son 30 günün operasyon özeti</p></div>
+          <div className="flex-1"><h1 className="text-xl font-black">Raporlar</h1><p className="text-xs text-gray-500 mt-1">Son 30 günün operasyon özeti</p></div>
+          <button type="button" onClick={exportReport} className="w-11 h-11 rounded-xl bg-violet-500/15 text-violet-300 flex items-center justify-center" aria-label="Raporu CSV indir"><Download size={20} /></button>
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-4 pb-10 space-y-5">
