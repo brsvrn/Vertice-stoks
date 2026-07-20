@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1092256949189",
+    "project_id": "vertice-stok",
+    "storage_bucket": "vertice-stok.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092256949189:android:34e2b4734fc23958e161ac",
+        "android_client_info": {
+          "package_name": "com.envantra.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1092256949189-mmke4a76cicag0drstk9l8odjge6pln3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.envantra.app",
+            "certificate_hash": "890bfcd760d8238265d7d326d53ccc8f7f9f2b87"
+          }
+        },
+        {
+          "client_id": "1092256949189-oi71cpqhf9esjkm822uuotmj3omqriri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmIxZ0DT1PVrAHjLZIMx4DrHuYvbtltXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1092256949189-oi71cpqhf9esjkm822uuotmj3omqriri.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,44 @@
+{
+  "appId": "com.envantra.app",
+  "appName": "Envantra",
+  "webDir": "mobile-shell",
+  "server": {
+    "url": "https://envantra.vercel.app",
+    "androidScheme": "https",
+    "cleartext": false,
+    "allowNavigation": [
+      "envantra.vercel.app",
+      "accounts.google.com",
+      "*.googleapis.com",
+      "*.firebaseapp.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1600,
+      "launchAutoHide": true,
+      "backgroundColor": "#F8F9FFFF",
+      "androidScaleType": "CENTER_INSIDE",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": false
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "LIGHT",
+      "backgroundColor": "#F8F9FFFF"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

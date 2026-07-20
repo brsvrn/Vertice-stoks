@@ -1,6 +1,7 @@
 import "./globals.css";
 import PWARegister from "../components/PWARegister";
 import NetworkStatus from "../components/NetworkStatus";
+import NativeAppBridge from "../components/NativeAppBridge";
 
 export const metadata = {
   title: "Envantra",
@@ -43,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body>
+        <NativeAppBridge />
         <PWARegister />
         <NetworkStatus />
         {children}

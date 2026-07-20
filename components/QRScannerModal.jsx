@@ -2,6 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { isNativeApp } from "../lib/nativeRuntime";
+
+const NATIVE_FORMATS = [
+  BarcodeFormat.QrCode,
+  BarcodeFormat.Ean13,
+  BarcodeFormat.Ean8,
+  BarcodeFormat.UpcA,
+  BarcodeFormat.UpcE,
+  BarcodeFormat.Code128,
+  BarcodeFormat.Code39,
+];
 
 function getCameraLabel(device, index) {
   return device.label || `Kamera ${index + 1}`;
@@ -34,10 +47,12 @@ export default function QRScannerModal({
   onClose,
   onScan,
 }) {
+  const nativeMode = isNativeApp();
   const videoRef = useRef(null);
   const readerRef = useRef(null);
   const controlsRef = useRef(null);
   const trackRef = useRef(null);
+  const nativeScannerRef = useRef(false);
   const lastScanRef = useRef({ value: "", timestamp: 0 });
   const mountedRef = useRef(true);
 
@@ -58,12 +73,16 @@ export default function QRScannerModal({
     setTorchEnabled(false);
 
     const stream = videoRef.current?.srcObject;
-    if (stream instanceof MediaStream) {
+    if (typeof MediaStream !== "undefined" && stream instanceof MediaStream) {
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
 
     readerRef.current = null;
+    if (nativeScannerRef.current) {
+      nativeScannerRef.current = false;
+      void BarcodeScanner.stopScan().catch(() => undefined);
+    }
   }, []);
 
   const reportScan = useCallback(
@@ -81,12 +100,43 @@ export default function QRScannerModal({
 
       lastScanRef.current = { value, timestamp: now };
       stopScanner();
+      if (nativeMode) void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
       onScan(value);
     },
-    [onScan, stopScanner]
+    [nativeMode, onScan, stopScanner]
   );
 
-  const startScanner = useCallback(
+  const startNativeScanner = useCallback(async () => {
+    try {
+      setStatus("starting");
+      setError("");
+      const { supported } = await BarcodeScanner.isSupported();
+      if (!supported) throw new Error("CAMERA_UNSUPPORTED");
+
+      nativeScannerRef.current = true;
+      setStatus("ready");
+      const result = await BarcodeScanner.scan({ formats: NATIVE_FORMATS, autoZoom: true });
+      nativeScannerRef.current = false;
+      if (!mountedRef.current) return;
+
+      const barcode = result.barcodes?.[0];
+      const value = barcode?.rawValue || barcode?.displayValue || "";
+      if (value) reportScan(value);
+      else onClose();
+    } catch (scanError) {
+      nativeScannerRef.current = false;
+      if (!mountedRef.current) return;
+      console.error("Android barkod tarama hatası:", scanError);
+      setStatus("error");
+      setError(
+        scanError?.message === "CAMERA_UNSUPPORTED"
+          ? "Bu cihazda kullanılabilir bir kamera bulunamadı."
+          : "Kamera başlatılamadı. Kamera iznini kontrol edin veya manuel giriş kullanın."
+      );
+    }
+  }, [onClose, reportScan]);
+
+  const startWebScanner = useCallback(
     async (requestedCameraId) => {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("error");
@@ -109,12 +159,8 @@ export default function QRScannerModal({
           getScannerConstraints(requestedCameraId),
           videoRef.current,
           (result, scanError) => {
-            if (result) {
-              reportScan(result.getText());
-              return;
-            }
-
-            if (scanError && scanError?.name !== "NotFoundException") {
+            if (result) reportScan(result.getText());
+            else if (scanError && scanError?.name !== "NotFoundException") {
               console.debug("Barkod tarama denemesi başarısız:", scanError);
             }
           }
@@ -122,11 +168,12 @@ export default function QRScannerModal({
 
         const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
         trackRef.current = track || null;
-
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
           (device) => device.kind === "videoinput"
         );
-        const activeCameraId = track?.getSettings?.().deviceId || chooseRearCamera(devices)?.deviceId || "";
+        const activeCameraId =
+          track?.getSettings?.().deviceId || chooseRearCamera(devices)?.deviceId || "";
+
         if (mountedRef.current) {
           setCameras(devices);
           setSelectedCameraId(activeCameraId);
@@ -134,41 +181,38 @@ export default function QRScannerModal({
 
         const capabilities = track?.getCapabilities?.() || {};
         setTorchAvailable(Boolean(capabilities.torch));
-
         if (capabilities.focusMode?.includes("continuous")) {
-          try {
-            await track.applyConstraints({
-              advanced: [{ focusMode: "continuous" }],
-            });
-          } catch (focusError) {
-            console.debug("Continuous focus is unavailable:", focusError);
-          }
+          await track
+            .applyConstraints({ advanced: [{ focusMode: "continuous" }] })
+            .catch(() => undefined);
         }
 
         await videoRef.current?.play?.().catch(() => undefined);
-
         if (mountedRef.current) setStatus("ready");
       } catch (cameraError) {
         console.error("Kamera başlatma hatası:", cameraError);
         if (!mountedRef.current) return;
-
         setStatus("error");
         if (["NotAllowedError", "PermissionDeniedError"].includes(cameraError?.name)) {
-          setError("Kamera izni verilmedi. Tarayıcı ayarlarından kamera iznini açın.");
+          setError("Kamera izni verilmedi. Uygulama ayarlarından kamera iznini açın.");
         } else if (cameraError?.name === "NotReadableError") {
           setError("Kamera başka bir uygulama tarafından kullanılıyor olabilir.");
         } else {
-          setError("Kamera başlatılamadı. Lütfen tekrar deneyin veya manuel giriş kullanın.");
+          setError("Kamera başlatılamadı. Tekrar deneyin veya manuel giriş kullanın.");
         }
       }
     },
     [reportScan, stopScanner]
   );
 
+  const startScanner = useCallback(
+    (cameraId) => (nativeMode ? startNativeScanner() : startWebScanner(cameraId)),
+    [nativeMode, startNativeScanner, startWebScanner]
+  );
+
   useEffect(() => {
     mountedRef.current = true;
-    startScanner();
-
+    void startScanner();
     return () => {
       mountedRef.current = false;
       stopScanner();
@@ -192,13 +236,11 @@ export default function QRScannerModal({
   const toggleTorch = async () => {
     const track = trackRef.current;
     if (!track?.applyConstraints) return;
-
     try {
       const nextValue = !torchEnabled;
       await track.applyConstraints({ advanced: [{ torch: nextValue }] });
       setTorchEnabled(nextValue);
-    } catch (torchError) {
-      console.debug("Torch could not be changed:", torchError);
+    } catch {
       setTorchAvailable(false);
     }
   };
@@ -217,12 +259,9 @@ export default function QRScannerModal({
         {!manualMode ? (
           <>
             <div className="scanner-viewport relative min-h-[320px] bg-black">
-              <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />
-              {(status === "starting" || status === "ready") && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
-                  <p className="hidden">
-                    Barkodu çerçevenin içine getirin
-                  </p>
+              {!nativeMode && <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />}
+              {!nativeMode && status !== "error" && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6">
                   <div className="scanner-focus-window" aria-hidden="true">
                     <i className="scanner-corner scanner-corner--top-left" />
                     <i className="scanner-corner scanner-corner--top-right" />
@@ -232,29 +271,18 @@ export default function QRScannerModal({
                   </div>
                 </div>
               )}
-              {status === "permission" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 px-6 text-center">
-                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-blue-500" />
-                  <p className="mt-5 font-black">{status === "permission" ? "Kamera izni bekleniyor..." : "Kamera hazırlanıyor..."}</p>
-                </div>
-              )}
             </div>
 
             <div className="space-y-4 px-6 py-6 text-center">
-              {status === "scanning" && <p className="font-bold text-green-400">● Kamera aktif — QR veya barkodu çerçeveye getirin</p>}
-              {torchAvailable && status === "scanning" && (
-                <button
-                  type="button"
-                  onClick={toggleTorch}
-                  className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-3 font-bold text-gray-300"
-                >
-                  {torchEnabled ? "Feneri kapat" : "Feneri aÃ§"}
+              {torchAvailable && status === "ready" && (
+                <button type="button" onClick={toggleTorch} className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-3 font-bold text-gray-300">
+                  {torchEnabled ? "Feneri kapat" : "Feneri aç"}
                 </button>
               )}
-              {cameras.length > 1 && (
+              {!nativeMode && cameras.length > 1 && (
                 <label className="block text-left text-sm text-gray-400">
                   Kamera
-                  <select value={selectedCameraId} onChange={(event) => startScanner(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white">
+                  <select value={selectedCameraId} onChange={(event) => void startScanner(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white">
                     {cameras.map((camera, index) => <option key={camera.deviceId} value={camera.deviceId}>{getCameraLabel(camera, index)}</option>)}
                   </select>
                 </label>
@@ -263,7 +291,7 @@ export default function QRScannerModal({
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-left">
                   <p className="font-bold text-red-300">Kamera açılamadı</p>
                   <p className="mt-2 text-sm text-red-200">{error}</p>
-                  <button type="button" onClick={() => startScanner(selectedCameraId)} className="mt-4 w-full rounded-xl bg-blue-600 py-3 font-bold">Tekrar dene</button>
+                  <button type="button" onClick={() => void startScanner(selectedCameraId)} className="mt-4 w-full rounded-xl bg-blue-600 py-3 font-bold">Tekrar dene</button>
                 </div>
               )}
               <button type="button" onClick={() => { stopScanner(); setManualMode(true); setError(""); }} className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-4 font-bold text-gray-300">Kodu manuel gir</button>
@@ -276,7 +304,7 @@ export default function QRScannerModal({
               <input type="text" inputMode="text" value={manualCode} onChange={(event) => setManualCode(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleManualSubmit()} placeholder="Barkod veya QR bağlantısı" className="mt-5 w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-4 text-white" autoFocus />
               {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
               <button type="button" onClick={handleManualSubmit} className="mt-5 w-full rounded-xl bg-blue-600 py-4 font-black">Ürünü ara</button>
-              <button type="button" onClick={() => { setManualMode(false); setError(""); startScanner(selectedCameraId); }} className="mt-3 w-full rounded-xl bg-gray-800 py-4 font-bold text-gray-300">Kameraya dön</button>
+              <button type="button" onClick={() => { setManualMode(false); setError(""); void startScanner(selectedCameraId); }} className="mt-3 w-full rounded-xl bg-gray-800 py-4 font-bold text-gray-300">Kameraya dön</button>
             </div>
           </div>
         )}

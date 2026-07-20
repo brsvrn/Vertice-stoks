@@ -3,8 +3,10 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.example.verticestok",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_ANDROID_APP_SIGNING_SHA256"]
+      "package_name": "com.envantra.app",
+      "sha256_cert_fingerprints": [
+        "17:54:81:7E:46:9D:5A:C2:D2:15:41:CF:9C:DE:98:BD:40:40:76:E3:97:05:B4:F7:8F:1C:14:68:05:B3:FA:87"
+      ]
     }
   }
 ]
