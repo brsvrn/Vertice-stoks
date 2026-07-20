@@ -7,8 +7,6 @@ import {
   Package,
   Scan,
   MoreHorizontal,
-  User,
-  Camera,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
