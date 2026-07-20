@@ -84,6 +84,19 @@ export default function Dashboard({
     .sort((a, b) => (asDate(b.date || b.createdAt)?.getTime() || 0) - (asDate(a.date || a.createdAt)?.getTime() || 0))
     .slice(0, 5), [transactions]);
 
+  const { todayInbound, todayOutbound } = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todays = transactions.filter(t => {
+      const d = asDate(t.date || t.createdAt);
+      return d && d >= todayStart;
+    });
+    return {
+      todayInbound: todays.filter(isStockIn).length,
+      todayOutbound: todays.filter(t => !isStockIn(t)).length
+    };
+  }, [transactions]);
+
   return (
     <div className="flex h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
       {/* Header */}
