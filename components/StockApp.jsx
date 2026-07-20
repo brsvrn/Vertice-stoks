@@ -33,6 +33,7 @@ import QRScannerModal from "./QRScannerModal";
 import InventoryView from "./InventoryView";
 import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
+import ReportsView from "./ReportsView";
 import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
 import { parseProductReference } from "../lib/qr";
@@ -1337,11 +1338,14 @@ export default function StockApp() {
           products={products}
           batches={batches}
           notifications={unreadNotifications}
+          transactions={transactions}
+          inventoryCounts={inventoryCounts}
           onOpenProduct={handleOpenProduct}
           onOpenScanner={() => setIsScannerOpen(true)}
           onOpenAddScanner={() => setIsAddScannerOpen(true)}
           onOpenInventory={() => setCurrentView("inventory")}
           onOpenHistory={() => setCurrentView("inventory_history")}
+          onOpenReports={() => setCurrentView("reports")}
           onOpenNotifications={() => setCurrentView("notifications")}
           onOpenProfile={() => setCurrentView("profile")}
           onOpenPrintCenter={handleOpenPrintCenter}
@@ -1379,6 +1383,16 @@ export default function StockApp() {
           onBack={handleBackToDashboard}
           onApplyInventory={handleApplyInventory}
           onRejectInventory={handleRejectInventory}
+        />
+      )}
+
+      {currentView === "reports" && (
+        <ReportsView
+          products={products}
+          batches={batches}
+          transactions={transactions}
+          inventoryCounts={inventoryCounts}
+          onBack={handleBackToDashboard}
         />
       )}
       
