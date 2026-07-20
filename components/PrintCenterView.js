@@ -58,6 +58,10 @@ export default function PrintCenterView({
     try {
       printLabels(printRef);
     } catch (error) {
+      if (error.message === "USE_PDF_INSTEAD_ON_MOBILE") {
+        handlePDF();
+        return;
+      }
       console.error("Label print failed:", error);
       showToast?.(
         "Yazdırma penceresi açılamadı. Tarayıcı açılır pencere iznini kontrol edin.",

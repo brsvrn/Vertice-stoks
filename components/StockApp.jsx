@@ -143,6 +143,33 @@ export default function StockApp() {
   const [products, setProducts] = useState([]);
   const [batches, setBatches] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [appVersion, setAppVersion] = useState(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  useEffect(() => {
+    let initialVersion = null;
+    
+    const checkVersion = async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (initialVersion === null) {
+            initialVersion = data.version;
+            setAppVersion(initialVersion);
+          } else if (data.version > initialVersion) {
+            setUpdateAvailable(true);
+          }
+        }
+      } catch (err) {
+        console.error("Version check error:", err);
+      }
+    };
+    
+    checkVersion();
+    const interval = setInterval(checkVersion, 30 * 1000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
   const [inventoryCounts, setInventoryCounts] = useState([]);
 
   const [currentView, setCurrentView] = useState("dashboard");
@@ -1466,6 +1493,17 @@ export default function StockApp() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden">
+      {updateAvailable && (
+        <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between z-50">
+          <span className="text-sm font-bold">Yeni bir sürüm mevcut!</span>
+          <button 
+            onClick={() => window.location.reload(true)}
+            className="bg-white text-blue-600 text-xs font-black px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+          >
+            Güncelle
+          </button>
+        </div>
+      )}
       {toast && <Toast toast={toast} />}
       
       {/* QR ÜRÜN ARA */}
@@ -1528,6 +1566,7 @@ export default function StockApp() {
           dbUser={dbUser}
           onBack={handleBackToDashboard}
           showToast={showToast}
+          onAddProduct={() => setCurrentView("admin_add")}
         />
       )}
       

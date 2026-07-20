@@ -48,6 +48,7 @@ export default function InventoryView({
   dbUser,
   onBack,
   showToast,
+  onAddProduct,
 }) {
   const [location, setLocation] =
     useState("DEPO");
@@ -57,11 +58,13 @@ export default function InventoryView({
     setSearchQuery,
   ] = useState("");
 
+  const [productFilter, setProductFilter] = useState("all");
+
   const [counts, setCounts] =
     useState({});
 
   const [activeSection, setActiveSection] =
-    useState("count");
+    useState("table");
 
   const [tableMode, setTableMode] =
     useState("current");
@@ -218,54 +221,36 @@ export default function InventoryView({
             "tr-TR"
           );
 
-      if (!query) {
-        return products;
+      let result = products;
+      
+      if (query) {
+        result = result.filter(
+          (product) => {
+            const name = String(product.name || "").toLocaleLowerCase("tr-TR");
+            const code = String(product.qrNo || product.barcode || product.barcodeNo || "").toLocaleLowerCase("tr-TR");
+            const category = String(product.category || "").toLocaleLowerCase("tr-TR");
+            return name.includes(query) || code.includes(query) || category.includes(query);
+          }
+        );
       }
 
-      return products.filter(
-        (product) => {
-          const name =
-            String(
-              product.name ||
-                ""
-            ).toLocaleLowerCase(
-              "tr-TR"
-            );
+      if (productFilter !== "all") {
+        result = result.filter(product => {
+          const systemStock = getSystemStock(product.id);
+          if (productFilter === "zararli") return systemStock < 0; // Negative stock or damaged? Wait, ProderFlow has Zararlı, I will map it to negative? Let's keep it as negative and kritik etc.
+          if (productFilter === "kritik") return systemStock > 0 && systemStock <= Number(product.minStock || 0);
+          if (productFilter === "negatif") return systemStock < 0;
+          if (productFilter === "stoksuz") return systemStock === 0;
+          return true;
+        });
+      }
 
-          const code =
-            String(
-              product.qrNo ||
-                product.barcode ||
-                product.barcodeNo ||
-                ""
-            ).toLocaleLowerCase(
-              "tr-TR"
-            );
-
-          const category =
-            String(
-              product.category ||
-                ""
-            ).toLocaleLowerCase(
-              "tr-TR"
-            );
-
-          return (
-            name.includes(
-              query
-            ) ||
-            code.includes(
-              query
-            ) ||
-            category.includes(
-              query
-            )
-          );
-        }
-      );
+      return result;
     }, [
       products,
       searchQuery,
+      productFilter,
+      getSystemStock,
     ]);
 
   /*
@@ -1458,8 +1443,8 @@ export default function InventoryView({
                   : "text-slate-500 hover:text-[var(--foreground)]"
               }`}
             >
-              <Table2 size={16} />
-              Stok Tablosu
+              <Package size={16} />
+              Ürünler
             </button>
           </div>
 
@@ -1548,105 +1533,94 @@ export default function InventoryView({
               </button>
             )}
           </div>
+
+          {activeSection === "table" && (
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
+              <FilterChip 
+                label="Tümü" 
+                active={productFilter === "all"} 
+                onClick={() => setProductFilter("all")} 
+              />
+              <FilterChip 
+                label="Zararlı" 
+                active={productFilter === "zararli"} 
+                onClick={() => setProductFilter("zararli")} 
+              />
+              <FilterChip 
+                label="Kritik" 
+                active={productFilter === "kritik"} 
+                onClick={() => setProductFilter("kritik")} 
+              />
+              <FilterChip 
+                label="Negatif" 
+                active={productFilter === "negatif"} 
+                onClick={() => setProductFilter("negatif")} 
+              />
+              <FilterChip 
+                label="Stoksuz" 
+                active={productFilter === "stoksuz"} 
+                onClick={() => setProductFilter("stoksuz")} 
+              />
+            </div>
+          )}
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 pb-32">
 
         {activeSection === "table" ? (
-          <section className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-black text-lg">Güncel Stok Tablosu</h2>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Depo ve bar stokları anlık verilerle hesaplanır.
-                  </p>
+          <section className="space-y-3">
+            {filteredProducts.map((product) => {
+              const systemStock = getSystemStock(product.id);
+              const isCritical = systemStock > 0 && systemStock <= Number(product.minStock || 0);
+              
+              const statusColor = systemStock < 0 ? "bg-red-500" : systemStock === 0 ? "bg-rose-500" : isCritical ? "bg-orange-500" : "bg-blue-500";
+              const statusText = systemStock < 0 ? "ZARARLI" : systemStock === 0 ? "STOKSUZ" : isCritical ? "KRİTİK" : "MEVCUT";
+              
+              return (
+                <div key={product.id} className="flex items-center justify-between p-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center shrink-0">
+                      <Package size={22} className="text-slate-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-[15px] text-[var(--foreground)] truncate">{product.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500">{product.qrNo || product.barcode || "Barkodsuz"}</span>
+                        <div className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider text-white ${statusColor}`}>
+                          {statusText}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <div className="flex items-end flex-col">
+                      <span className="text-2xl font-black text-[var(--foreground)] leading-none">{systemStock}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Stok</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="shrink-0 bg-blue-500/10 text-blue-400 rounded-lg px-2.5 py-1 text-xs font-bold">
-                  {inventoryTableRows.length} ürün
-                </span>
+              );
+            })}
+            
+            {filteredProducts.length === 0 && (
+              <div className="py-20 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                  <Package size={32} className="text-slate-400" />
+                </div>
+                <h3 className="text-lg font-black text-[var(--foreground)]">Ürün Bulunamadı</h3>
+                <p className="text-slate-500 mt-2 max-w-[250px]">
+                  Filtrelere veya aramaya uygun ürün bulunamadı.
+                </p>
               </div>
+            )}
 
-              <div className="grid gap-2 mt-4 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => handlePrintTable("current")}
-                  className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
-                >
-                  <Printer size={18} />
-                  Güncel Stoğu Yazdır
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePrintTable("count")}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
-                >
-                  <ClipboardCheck size={18} />
-                  Boş Sayım Formu Yazdır
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-2 gap-2 border-b border-gray-800 p-3">
-                <button
-                  type="button"
-                  onClick={() => setTableMode("current")}
-                  className={`rounded-lg py-2.5 text-xs font-bold ${
-                    tableMode === "current"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-950 text-gray-500"
-                  }`}
-                >
-                  Güncel Stok Tablosu
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTableMode("count")}
-                  className={`rounded-lg py-2.5 text-xs font-bold ${
-                    tableMode === "count"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-950 text-gray-500"
-                  }`}
-                >
-                  Sayım Tablosu
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] text-left text-sm">
-                  <thead className="bg-gray-950 text-gray-500 text-[10px] uppercase tracking-wide">
-                    <tr>
-                      <th className="px-4 py-3 font-bold">Barkod</th>
-                      <th className="px-4 py-3 font-bold">Ürün</th>
-                      <th className="px-4 py-3 font-bold text-right">Depo</th>
-                      <th className="px-4 py-3 font-bold text-right">Bar</th>
-                      <th className="px-4 py-3 font-bold text-right">Toplam</th>
-                      {tableMode === "count" && (
-                        <th className="px-4 py-3 font-bold text-center">Sayım</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {inventoryTableRows.map((row) => (
-                      <tr key={`${row.barcode}-${row.name}`}>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-400">{row.barcode}</td>
-                        <td className="px-4 py-3 font-bold text-white">{row.name}</td>
-                        <td className="px-4 py-3 text-right text-gray-300">{row.depotStock}</td>
-                        <td className="px-4 py-3 text-right text-gray-300">{row.barStock}</td>
-                        <td className="px-4 py-3 text-right font-black text-blue-400">{row.totalStock}</td>
-                        {tableMode === "count" && (
-                          <td className="px-4 py-3"><div className="h-8 min-w-20 rounded-lg border border-dashed border-gray-700" /></td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {inventoryTableRows.length === 0 && (
-                <p className="px-4 py-10 text-center text-gray-500">Tablolanacak ürün bulunamadı.</p>
-              )}
-            </div>
+            <button
+              onClick={onAddProduct}
+              className="fixed bottom-24 right-5 w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-[0_8px_20px_rgba(37,99,235,0.4)] hover:bg-blue-700 active:scale-95 transition-all z-50"
+            >
+              <Plus size={28} />
+            </button>
           </section>
         ) : (
           <>
@@ -1770,5 +1744,21 @@ export default function InventoryView({
         </div>
       )}
     </div>
+  );
+}
+
+function FilterChip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+        active
+          ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+          : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+      }`}
+    >
+      {label}
+    </button>
   );
 }

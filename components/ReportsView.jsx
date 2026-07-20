@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { ArrowLeft, BarChart3, Box, Download, Lightbulb, Package, ScanLine, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 function asDate(value) {
   if (!value) return null;
@@ -56,14 +58,37 @@ export default function ReportsView({ products = [], batches = [], transactions 
     return { stocks, inbound, outbound, critical, pendingCounts, categoryDistribution, topProducts, days, upcomingExpiry, recentCount: recent.length };
   }, [batches, inventoryCounts, products, transactions]);
 
-  const exportReport = () => {
-    const lines = [["Envantra Raporu", new Date().toLocaleString("tr-TR")], ["Toplam stok", summary.stocks], ["Son 30 gün stok girişi", summary.inbound], ["Son 30 gün stok çıkışı", summary.outbound], ["Kritik stoklu ürün", summary.critical.length], [], ["Ürün", "Son 30 gün hareket"], ...summary.topProducts.map((item) => [item.product.name, item.quantity])];
-    const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    link.download = `envantra-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+  const exportReport = async () => {
+    try {
+      const lines = [["Envantra Raporu", new Date().toLocaleString("tr-TR")], ["Toplam stok", summary.stocks], ["Son 30 gün stok girişi", summary.inbound], ["Son 30 gün stok çıkışı", summary.outbound], ["Kritik stoklu ürün", summary.critical.length], [], ["Ürün", "Son 30 gün hareket"], ...summary.topProducts.map((item) => [item.product.name, item.quantity])];
+      const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+
+      const fileName = `envantra-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
+      
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: csv,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
+      });
+
+      await Share.share({
+        title: 'Envantra Raporu',
+        text: 'Envantra stok raporu ektedir.',
+        url: result.uri,
+        dialogTitle: 'Raporu Kaydet veya Paylaş',
+      });
+    } catch (error) {
+      console.error("Export failed:", error);
+      // Fallback for web
+      const lines = [["Envantra Raporu", new Date().toLocaleString("tr-TR")], ["Toplam stok", summary.stocks], ["Son 30 gün stok girişi", summary.inbound], ["Son 30 gün stok çıkışı", summary.outbound], ["Kritik stoklu ürün", summary.critical.length], [], ["Ürün", "Son 30 gün hareket"], ...summary.topProducts.map((item) => [item.product.name, item.quantity])];
+      const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      link.download = `envantra-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
   };
 
   const chartMaximum = Math.max(...summary.days.flatMap((item) => [item.inbound, item.outbound]), 1);
