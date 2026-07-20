@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   onAuthStateChanged,
+  getRedirectResult,
+  GoogleAuthProvider,
+  linkWithRedirect,
+  signInWithRedirect,
   signInAnonymously,
   signOut,
 } from "firebase/auth";
@@ -34,6 +38,7 @@ import InventoryView from "./InventoryView";
 import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 import ReportsView from "./ReportsView";
+import GoogleSignInView from "./GoogleSignInView";
 import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
 import { parseProductReference } from "../lib/qr";
@@ -143,6 +148,8 @@ export default function StockApp() {
   const [readNotificationIds, setReadNotificationIds] = useState([]);
 
   const [inventoryActionLoading, setInventoryActionLoading] = useState(false);
+  const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
+  const [googleSignInError, setGoogleSignInError] = useState("");
 
   const [
     permissionsSetupCompleted,
@@ -219,6 +226,7 @@ export default function StockApp() {
 
     const startAuthentication = async () => {
       try {
+        await getRedirectResult(auth);
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
@@ -592,6 +600,29 @@ export default function StockApp() {
     } catch (error) {
       console.error("Profil oluşturma hatası:", error);
       showToast("Profil oluşturulamadı.", "error");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleSignInLoading(true);
+      setGoogleSignInError("");
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      if (auth.currentUser?.isAnonymous) {
+        await linkWithRedirect(auth.currentUser, provider);
+      } else {
+        await signInWithRedirect(auth, provider);
+      }
+    } catch (error) {
+      console.error("Google giriş hatası:", error);
+      const message = error?.code === "auth/operation-not-allowed"
+        ? "Google ile giriş Firebase ayarlarında henüz etkinleştirilmemiş."
+        : error?.code === "auth/credential-already-in-use"
+          ? "Bu Google hesabı başka bir kullanıcıyla bağlı. Yöneticiyle iletişime geçin."
+          : "Google ile giriş başlatılamadı. Lütfen tekrar deneyin.";
+      setGoogleSignInError(message);
+      setGoogleSignInLoading(false);
     }
   };
 
@@ -1282,6 +1313,10 @@ export default function StockApp() {
         </div>
       </main>
     );
+  }
+
+  if (user.isAnonymous) {
+    return <GoogleSignInView loading={googleSignInLoading} error={googleSignInError} onSignIn={handleGoogleSignIn} />;
   }
 
   /*
