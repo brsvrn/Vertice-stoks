@@ -1,12 +1,12 @@
-const CACHE_NAME = "envantra-brand-v5";
+const CACHE_NAME = "envantra-brand-v6";
 
 const APP_SHELL = [
   "/",
   "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon.png",
+  "/icons/envantra-logo-192-v1.png",
+  "/icons/envantra-logo-512-v1.png",
+  "/icons/envantra-maskable-512-v1.png",
+  "/icons/envantra-apple-180-v1.png",
   "/offline.html",
 ];
 

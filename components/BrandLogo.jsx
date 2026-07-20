@@ -4,7 +4,7 @@ export default function BrandLogo({ compact = false, className = "" }) {
   return (
     <div className={`envantra-brand ${compact ? "envantra-brand--compact" : ""} ${className}`.trim()}>
       <img
-        src="/icons/icon-192.png"
+        src="/icons/envantra-logo-192-v1.png"
         alt=""
         width={compact ? 44 : 96}
         height={compact ? 44 : 96}

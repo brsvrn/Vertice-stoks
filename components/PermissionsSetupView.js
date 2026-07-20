@@ -248,7 +248,7 @@ export default function PermissionsSetupView({
           <div className="w-24 h-24 mx-auto rounded-3xl overflow-hidden border border-yellow-500/20 shadow-2xl">
 
             <img
-              src="/icons/icon-192.png"
+              src="/icons/envantra-logo-192-v1.png"
               alt="Envantra"
               className="w-full h-full object-cover"
             />

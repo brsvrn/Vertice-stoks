@@ -73,8 +73,8 @@ async function showForegroundPush(payload) {
   const body = payload?.notification?.body || "Yeni bir bildiriminiz var.";
   const options = {
     body,
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/icons/envantra-logo-192-v1.png",
+    badge: "/icons/envantra-logo-192-v1.png",
     tag: payload?.data?.notificationId || payload?.data?.type || "vertice-stok",
     data: { url: payload?.data?.url || "/" },
   };

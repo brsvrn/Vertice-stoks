@@ -26,25 +26,25 @@ export default function manifest() {
 
     icons: [
       {
-        src: "/icons/icon-192.png",
+        src: "/icons/envantra-logo-192-v1.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-512.png",
+        src: "/icons/envantra-logo-512-v1.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-maskable-512.png",
+        src: "/icons/envantra-maskable-512-v1.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/icons/apple-touch-icon.png",
+        src: "/icons/envantra-apple-180-v1.png",
         sizes: "180x180",
         type: "image/png",
         purpose: "any",

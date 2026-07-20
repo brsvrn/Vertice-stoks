@@ -10,18 +10,18 @@ export const metadata = {
   icons: {
     icon: [
       {
-        url: "/icons/icon-192.png",
+        url: "/icons/envantra-logo-192-v1.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/icons/icon-512.png",
+        url: "/icons/envantra-logo-512-v1.png",
         sizes: "512x512",
         type: "image/png",
       },
     ],
-    apple: "/icons/apple-touch-icon.png",
-    shortcut: "/icons/favicon-32.png",
+    apple: "/icons/envantra-apple-180-v1.png",
+    shortcut: "/icons/envantra-favicon-32-v1.png",
   },
   appleWebApp: {
     capable: true,
