@@ -95,34 +95,9 @@ export default function QRScannerModal({
       }
 
       try {
-        setStatus("permission");
+        setStatus("starting");
         setError("");
         stopScanner();
-
-        const permissionStream = await navigator.mediaDevices.getUserMedia(
-          getScannerConstraints()
-        );
-        const grantedCameraId = permissionStream
-          .getVideoTracks()[0]
-          ?.getSettings?.().deviceId;
-        permissionStream.getTracks().forEach((track) => track.stop());
-
-        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
-          (device) => device.kind === "videoinput"
-        );
-        const fallbackCamera = chooseRearCamera(devices);
-        const cameraId =
-          requestedCameraId || grantedCameraId || fallbackCamera?.deviceId;
-
-        if (!cameraId) {
-          throw new Error("CAMERA_NOT_FOUND");
-        }
-
-        if (!mountedRef.current) return;
-
-        setCameras(devices);
-        setSelectedCameraId(cameraId);
-        setStatus("starting");
 
         const reader = new BrowserMultiFormatReader(undefined, {
           delayBetweenScanAttempts: 100,
@@ -131,7 +106,7 @@ export default function QRScannerModal({
         readerRef.current = reader;
 
         controlsRef.current = await reader.decodeFromConstraints(
-          getScannerConstraints(cameraId),
+          getScannerConstraints(requestedCameraId),
           videoRef.current,
           (result, scanError) => {
             if (result) {
@@ -148,6 +123,15 @@ export default function QRScannerModal({
         const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
         trackRef.current = track || null;
 
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (device) => device.kind === "videoinput"
+        );
+        const activeCameraId = track?.getSettings?.().deviceId || chooseRearCamera(devices)?.deviceId || "";
+        if (mountedRef.current) {
+          setCameras(devices);
+          setSelectedCameraId(activeCameraId);
+        }
+
         const capabilities = track?.getCapabilities?.() || {};
         setTorchAvailable(Boolean(capabilities.torch));
 
@@ -163,7 +147,7 @@ export default function QRScannerModal({
 
         await videoRef.current?.play?.().catch(() => undefined);
 
-        if (mountedRef.current) setStatus("scanning");
+        if (mountedRef.current) setStatus("ready");
       } catch (cameraError) {
         console.error("Kamera başlatma hatası:", cameraError);
         if (!mountedRef.current) return;
@@ -234,9 +218,9 @@ export default function QRScannerModal({
           <>
             <div className="scanner-viewport relative min-h-[320px] bg-black">
               <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />
-              {(status === "starting" || status === "scanning") && (
+              {(status === "starting" || status === "ready") && (
                 <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
-                  <p className="mb-6 rounded-full bg-black/45 px-4 py-2 text-sm font-bold text-white backdrop-blur-sm">
+                  <p className="hidden">
                     Barkodu çerçevenin içine getirin
                   </p>
                   <div className="scanner-focus-window" aria-hidden="true">
@@ -248,7 +232,7 @@ export default function QRScannerModal({
                   </div>
                 </div>
               )}
-              {(status === "permission" || status === "starting") && (
+              {status === "permission" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 px-6 text-center">
                   <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-blue-500" />
                   <p className="mt-5 font-black">{status === "permission" ? "Kamera izni bekleniyor..." : "Kamera hazırlanıyor..."}</p>
