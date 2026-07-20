@@ -6,6 +6,10 @@ import {
   Camera,
   CheckCircle2,
   ClipboardCheck,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Clock3,
   History,
   Home,
   Package,
@@ -20,11 +24,14 @@ export default function Dashboard({
   products = [],
   batches = [],
   notifications = [],
+  transactions = [],
+  inventoryCounts = [],
   onOpenProduct,
   onOpenScanner,
   onOpenAddScanner,
   onOpenInventory,
   onOpenHistory,
+  onOpenReports,
   onOpenNotifications,
   onOpenProfile,
   onOpenPrintCenter,
@@ -70,25 +77,81 @@ export default function Dashboard({
     }, {});
   }, [filteredProducts]);
 
-  const getProductStock = (productId) => {
-    return batches
-      .filter((batch) => batch.productId === productId)
-      .reduce((total, batch) => total + Number(batch.quantity || 0), 0);
-  };
+  const stockByProduct = useMemo(() => {
+    return batches.reduce((stockMap, batch) => {
+      const productId = batch.productId;
+      if (!productId) return stockMap;
 
-  const totalStock = useMemo(() => {
-    return batches.reduce(
-      (total, batch) => total + Number(batch.quantity || 0),
-      0
-    );
+      const current = stockMap[productId] || { total: 0, depot: 0, bar: 0 };
+      const quantity = Number(batch.quantity || 0);
+      const location = String(batch.location || "DEPO").toUpperCase();
+      current.total += quantity;
+      current[location === "BAR" ? "bar" : "depot"] += quantity;
+      stockMap[productId] = current;
+      return stockMap;
+    }, {});
   }, [batches]);
+
+  const getProductStock = (productId) => stockByProduct[productId]?.total || 0;
+
+  const totalStock = useMemo(
+    () => Object.values(stockByProduct).reduce((total, item) => total + item.total, 0),
+    [stockByProduct]
+  );
 
   const criticalProductCount = useMemo(() => {
     return products.filter((product) => {
       const stock = getProductStock(product.id);
       return stock <= Number(product.minStock || 0);
     }).length;
-  }, [products, batches]);
+  }, [products, stockByProduct]);
+
+  const attentionItems = useMemo(() => {
+    const critical = products
+      .filter((product) => getProductStock(product.id) <= Number(product.minStock || 0))
+      .slice(0, 2)
+      .map((product) => ({
+        id: `critical-${product.id}`,
+        label: product.name,
+        description: `Kritik stok: ${getProductStock(product.id)} adet`,
+        tone: "red",
+      }));
+
+    const now = new Date();
+    const sevenDaysLater = new Date(now);
+    sevenDaysLater.setDate(now.getDate() + 7);
+    const expiring = batches
+      .filter((batch) => {
+        if (!batch.expiryDate || Number(batch.quantity || 0) <= 0) return false;
+        const date = new Date(batch.expiryDate);
+        return !Number.isNaN(date.getTime()) && date >= now && date <= sevenDaysLater;
+      })
+      .slice(0, 2)
+      .map((batch) => ({
+        id: `expiry-${batch.id}`,
+        label: products.find((product) => product.id === batch.productId)?.name || "Ürün",
+        description: `SKT: ${new Intl.DateTimeFormat("tr-TR").format(new Date(batch.expiryDate))}`,
+        tone: "amber",
+      }));
+
+    const pending = inventoryCounts
+      .filter((inventory) => inventory.applied === false && Number(inventory.differenceProducts || 0) > 0 && inventory.status !== "REJECTED")
+      .slice(0, 1)
+      .map((inventory) => ({
+        id: `inventory-${inventory.id}`,
+        label: "Sayım onayı bekliyor",
+        description: `${inventory.differenceProducts} üründe stok farkı var`,
+        tone: "violet",
+      }));
+
+    return [...critical, ...expiring, ...pending].slice(0, 4);
+  }, [batches, inventoryCounts, products, stockByProduct]);
+
+  const recentTransactions = useMemo(() => {
+    return [...transactions]
+      .sort((first, second) => new Date(second.date || second.createdAt || 0) - new Date(first.date || first.createdAt || 0))
+      .slice(0, 4);
+  }, [transactions]);
 
   const sortedCategories = Object.keys(groupedProducts).sort((a, b) =>
     a.localeCompare(b, "tr")
@@ -133,16 +196,17 @@ export default function Dashboard({
             </button>
           </div>
 
-          {/* ÖZET KARTLARI */}
+          {/* OPERASYON ÖZETİ */}
           <div className="grid grid-cols-2 gap-3 mb-5">
             <div className="soft-dashboard__primary-stat col-span-2 rounded-2xl p-4">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
-                Ürün
+                Kayıtlı Ürün
               </p>
 
               <p className="text-3xl font-black text-white mt-1">
                 {products.length}
               </p>
+              <p className="text-xs text-gray-500 mt-2">Stok operasyonunuzun güncel özeti</p>
             </div>
 
             <div className="soft-dashboard__critical-stat bg-gray-950 border border-gray-800 rounded-xl p-3">
@@ -157,7 +221,7 @@ export default function Dashboard({
 
             <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
-                Kritik
+                Kritik Stok
               </p>
 
               <p
@@ -197,11 +261,77 @@ export default function Dashboard({
               </button>
             )}
           </div>
+
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            <QuickAction icon={<Camera size={19} />} label="Tara" onClick={onOpenScanner} primary />
+            {dbUser?.role === "admin" && <QuickAction icon={<Plus size={19} />} label="Ürün Ekle" onClick={onOpenAddScanner} />}
+            {dbUser?.role === "admin" && <QuickAction icon={<ClipboardCheck size={19} />} label="Sayım" onClick={onOpenInventory} />}
+            <QuickAction icon={<History size={19} />} label="Hareketler" onClick={onOpenHistory} />
+          </div>
         </div>
       </header>
 
       {/* ÜRÜN LİSTESİ */}
       <main className="flex-1 overflow-y-auto p-4 pb-40">
+        <section className="mb-7">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-orange-400" />
+              <h2 className="text-xs font-black uppercase tracking-[0.15em] text-gray-300">Dikkat Gerektirenler</h2>
+            </div>
+            <span className="text-[10px] text-gray-500 font-bold">{attentionItems.length} kayıt</span>
+          </div>
+
+          {attentionItems.length > 0 ? (
+            <div className="space-y-2">
+              {attentionItems.map((item) => (
+                <div key={item.id} className={`rounded-xl border px-3 py-3 flex items-center gap-3 ${
+                  item.tone === "red" ? "border-red-500/25 bg-red-500/10" : item.tone === "amber" ? "border-orange-500/25 bg-orange-500/10" : "border-violet-500/25 bg-violet-500/10"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${item.tone === "red" ? "bg-red-400" : item.tone === "amber" ? "bg-orange-400" : "bg-violet-400"}`} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{item.label}</p>
+                    <p className="text-xs text-gray-400 truncate">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+              Şu anda takip gerektiren kritik stok, yaklaşan SKT veya bekleyen sayım yok.
+            </div>
+          )}
+        </section>
+
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <Clock3 size={16} className="text-blue-400" />
+              <h2 className="text-xs font-black uppercase tracking-[0.15em] text-gray-300">Son Hareketler</h2>
+            </div>
+            <div className="flex gap-3"><button type="button" onClick={onOpenReports} className="text-xs font-bold text-violet-400">Raporlar</button><button type="button" onClick={onOpenHistory} className="text-xs font-bold text-blue-400">Tümünü gör</button></div>
+          </div>
+          <div className="rounded-2xl border border-gray-800 bg-gray-900 divide-y divide-gray-800">
+            {recentTransactions.length > 0 ? recentTransactions.map((transaction) => {
+              const isStockIn = transaction.direction === "IN" || transaction.type === "STOCK_IN";
+              return (
+                <div key={transaction.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${isStockIn ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                    {isStockIn ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-white truncate">{transaction.productName || "Stok işlemi"}</p>
+                    <p className="text-[11px] text-gray-500">{transaction.location || "DEPO"} · {transaction.userName || "Sistem"}</p>
+                  </div>
+                  <span className={`font-black text-sm ${isStockIn ? "text-emerald-400" : "text-red-400"}`}>
+                    {isStockIn ? "+" : "-"}{Number(transaction.quantity || 0)}
+                  </span>
+                </div>
+              );
+            }) : <p className="px-4 py-5 text-sm text-gray-500">Henüz kaydedilmiş stok hareketi bulunmuyor.</p>}
+          </div>
+        </section>
+
         {searchQuery && (
           <div className="flex justify-between items-center mb-5 px-1">
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
@@ -431,4 +561,21 @@ function NavButton({ icon, label, active = false, onClick }) {
       </span>
     </button>
   );
-            }
+}
+
+function QuickAction({ icon, label, onClick, primary = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-19 rounded-xl border px-1 py-3 flex flex-col items-center justify-center gap-1.5 text-[10px] font-bold transition-all active:scale-95 ${
+        primary
+          ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-950/40"
+          : "bg-gray-950 border-gray-800 text-gray-300 hover:bg-gray-800"
+      }`}
+    >
+      {icon}
+      <span className="text-center leading-tight">{label}</span>
+    </button>
+  );
+}
