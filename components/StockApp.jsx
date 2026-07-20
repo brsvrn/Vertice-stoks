@@ -616,11 +616,15 @@ export default function StockApp() {
       }
     } catch (error) {
       console.error("Google giriş hatası:", error);
-      const message = error?.code === "auth/operation-not-allowed"
-        ? "Google ile giriş Firebase ayarlarında henüz etkinleştirilmemiş."
-        : error?.code === "auth/credential-already-in-use"
-          ? "Bu Google hesabı başka bir kullanıcıyla bağlı. Yöneticiyle iletişime geçin."
-          : "Google ile giriş başlatılamadı. Lütfen tekrar deneyin.";
+      const errorMessages = {
+        "auth/operation-not-allowed": "Google ile giriş Firebase Authentication ayarlarında etkin değil.",
+        "auth/unauthorized-domain": "Bu Vercel alan adı Firebase Authentication için yetkilendirilmemiş.",
+        "auth/credential-already-in-use": "Bu Google hesabı başka bir Vertice kullanıcısıyla bağlı.",
+        "auth/account-exists-with-different-credential": "Bu e-posta başka bir giriş yöntemiyle kayıtlı.",
+        "auth/network-request-failed": "Google girişi için internet bağlantısı gerekli.",
+        "auth/web-storage-unsupported": "Tarayıcı depolama izni kapalı. Gizli sekmeyi kapatıp tekrar deneyin.",
+      };
+      const message = errorMessages[error?.code] || `Google ile giriş başlatılamadı (${error?.code || "bilinmeyen hata"}).`;
       setGoogleSignInError(message);
       setGoogleSignInLoading(false);
     }
