@@ -3,7 +3,10 @@
     "details": [
       {
         "appIDs": ["TEAM_ID.com.example.verticestok"],
-        "components": [{ "/": "/product/*", "comment": "Envantra product links" }]
+        "components": [
+          { "/": "/product/*", "comment": "Envantra product links" },
+          { "/": "/join*", "comment": "Envantra company invitation links" }
+        ]
       }
     ]
   }

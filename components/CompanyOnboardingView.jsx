@@ -1,0 +1,23 @@
+"use client";
+
+import { useState } from "react";
+import { Building2, ChevronRight, KeyRound, Plus, Users } from "lucide-react";
+
+export default function CompanyOnboardingView({ companies = [], onCreate, onJoin, onSelect, loading, error, invitePending }) {
+  const [mode, setMode] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const normalizeCode = (value) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  if (invitePending) return <Shell><div className="text-center"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500"><KeyRound size={27} /></span><h1 className="mt-5 text-2xl font-black">Davet doğrulanıyor</h1><p className="mt-2 text-sm text-gray-500">İşletme üyeliğiniz güvenli şekilde oluşturuluyor.</p><div className="mx-auto mt-6 h-10 w-10 animate-spin rounded-full border-4 border-gray-800 border-t-blue-500" /></div></Shell>;
+
+  if (!mode) return <Shell><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500"><Building2 size={28} /></span><h1 className="mt-5 text-2xl font-black">İşletmenizi seçin</h1><p className="mt-2 text-sm leading-6 text-gray-500">Her işletmenin stokları ve kullanıcıları birbirinden ayrı tutulur.</p>{error && <ErrorMessage>{error}</ErrorMessage>}{companies.length > 0 && <div className="mt-6 space-y-2">{companies.map((company) => <button key={company.id} type="button" onClick={() => onSelect(company)} disabled={loading} className="flex w-full items-center gap-3 rounded-2xl border border-gray-800 bg-gray-950 p-4 text-left"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500"><Building2 size={21} /></span><span className="min-w-0 flex-1"><strong className="block truncate text-white">{company.name}</strong><small className="mt-1 block text-gray-500">{roleLabel(company.membership?.role)}</small></span><ChevronRight size={18} className="text-gray-500" /></button>)}</div>}<div className="mt-6 grid gap-3"><button type="button" onClick={() => setMode("create")} className="flex w-full items-center gap-4 rounded-2xl bg-blue-600 p-4 text-left font-bold text-white"><Plus size={22} /><span>Yeni işletme oluştur</span></button><button type="button" onClick={() => setMode("join")} className="flex w-full items-center gap-4 rounded-2xl border border-gray-800 bg-gray-950 p-4 text-left font-bold text-gray-300"><Users size={22} className="text-blue-500" /><span>Katılım koduyla katıl</span></button></div></Shell>;
+
+  const create = mode === "create";
+  const submit = async (event) => { event.preventDefault(); if (create) await onCreate(companyName.trim()); else await onJoin(normalizeCode(joinCode)); };
+  return <Shell><form onSubmit={submit}><button type="button" onClick={() => setMode("")} className="text-sm font-bold text-blue-500">← Geri</button><span className="mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">{create ? <Building2 size={28} /> : <KeyRound size={28} />}</span><h1 className="mt-5 text-2xl font-black">{create ? "Yeni işletme oluştur" : "İşletmeye katıl"}</h1><p className="mt-2 text-sm leading-6 text-gray-500">{create ? "İşletmeyi oluşturan hesap OWNER olur." : "Yöneticinizden aldığınız katılım kodunu girin."}</p><label className="mt-6 block text-sm font-bold text-gray-400">{create ? "İşletme adı" : "Katılım kodu"}<input required value={create ? companyName : joinCode} onChange={(event) => create ? setCompanyName(event.target.value) : setJoinCode(event.target.value)} placeholder={create ? "Örn. Vertice" : "ENV-XXXX-XXXXXX"} className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-4 text-white outline-none" /></label>{error && <ErrorMessage>{error}</ErrorMessage>}<button disabled={loading || (create ? !companyName.trim() : !joinCode.trim())} className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-bold text-white disabled:opacity-60">{loading ? "İşleniyor..." : create ? "İşletmeyi oluştur" : "İşletmeye katıl"}</button></form></Shell>;
+}
+
+function Shell({ children }) { return <main className="min-h-[100dvh] bg-gray-950 p-5 text-white flex items-center justify-center"><section className="w-full max-w-md rounded-3xl border border-gray-800 bg-gray-900 p-6 shadow-xl">{children}</section></main>; }
+function ErrorMessage({ children }) { return <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500">{children}</p>; }
+function roleLabel(role) { return role === "OWNER" ? "İşletme sahibi" : role === "ADMIN" ? "Yönetici" : "Personel"; }

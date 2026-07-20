@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  linkWithPopup,
+  sendPasswordResetEmail,
   signInWithCredential,
+  signInWithEmailAndPassword,
   signInWithPopup,
-  signInAnonymously,
   signOut,
 } from "firebase/auth";
 
@@ -22,7 +23,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 
-import { auth, db, appId } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 
 import {
   getFCMToken,
@@ -41,7 +42,10 @@ import ReportsView from "./ReportsView";
 import GoogleSignInView from "./GoogleSignInView";
 import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
+import CompanyOnboardingView from "./CompanyOnboardingView";
+import CompanyAccessView from "./CompanyAccessView";
 import { parseProductReference } from "../lib/qr";
+import { getActiveCompanyId, setActiveCompanyId } from "../lib/tenantRuntime";
 
 function getDeviceRegistrationId() {
   const storageKey = "vertice_push_device_id";
@@ -96,14 +100,9 @@ PUBLIC FIRESTORE COLLECTION
 */
 
 export const getPublicCollection = (collectionName) => {
-  return collection(
-    db,
-    "artifacts",
-    appId,
-    "public",
-    "data",
-    collectionName
-  );
+  const companyId = getActiveCompanyId();
+  if (!companyId) throw new Error("ACTIVE_COMPANY_REQUIRED");
+  return collection(db, "companies", companyId, collectionName);
 };
 
 export default function StockApp() {
@@ -118,6 +117,10 @@ export default function StockApp() {
 
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [companyLoading, setCompanyLoading] = useState(true);
+  const [companyError, setCompanyError] = useState("");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const [products, setProducts] = useState([]);
@@ -138,6 +141,11 @@ export default function StockApp() {
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("product") || "";
   });
+  const [pendingInviteToken, setPendingInviteToken] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const parameters = new URLSearchParams(window.location.search);
+    return parameters.get("invite") || parameters.get("token") || "";
+  });
 
   const [toast, setToast] = useState(null);
 
@@ -156,6 +164,11 @@ export default function StockApp() {
     permissionsSetupCompleted,
     setPermissionsSetupCompleted,
   ] = useState(null);
+
+  const showToast = useCallback((message, type = "success") => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
+  }, []);
 
   /*
 
@@ -176,24 +189,70 @@ export default function StockApp() {
     }
   }, []);
 
-  /*
+  const activateCompany = useCallback((selectedCompany) => {
+    setActiveCompanyId(selectedCompany?.id || "");
+    setProducts([]);
+    setBatches([]);
+    setTransactions([]);
+    setInventoryCounts([]);
+    setSelectedProduct(null);
+    setCurrentView("dashboard");
+    setCompany(selectedCompany || null);
+    if (selectedCompany) {
+      window.localStorage.setItem("envantra_active_company_id", selectedCompany.id);
+      const tenantRole = selectedCompany.membership?.role || "PERSONNEL";
+      setDbUser((current) => current ? { ...current, tenantRole, role: tenantRole === "PERSONNEL" ? "staff" : "admin" } : current);
+    } else {
+      window.localStorage.removeItem("envantra_active_company_id");
+    }
+  }, []);
 
-  =========================================
+  useEffect(() => {
+    if (!user || !dbUser?.uid) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setCompanyLoading(true);
+        setCompanyError("");
+        const token = await user.getIdToken();
+        if (pendingInviteToken) {
+          const joinResponse = await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: "joinInvite", token: pendingInviteToken }) });
+          const joinPayload = await joinResponse.json();
+          if (!joinResponse.ok) throw new Error(joinPayload?.error || "Davet kullanılamadı.");
+          setPendingInviteToken("");
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+        const response = await fetch("/api/companies", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || "İşletmeler yüklenemedi.");
+        if (cancelled) return;
+        const list = payload.companies || [];
+        setCompanies(list);
+        const localId = window.localStorage.getItem("envantra_active_company_id");
+        const preferred = list.find((item) => item.id === localId) || list.find((item) => item.id === payload.lastCompanyId) || (list.length === 1 ? list[0] : null);
+        activateCompany(preferred);
+        if (payload.initialJoinCode) showToast(`Vertice katılım kodu: ${payload.initialJoinCode}`, "success");
+      } catch (error) {
+        if (!cancelled) setCompanyError(error?.message || "İşletmeler yüklenemedi.");
+      } finally {
+        if (!cancelled) setCompanyLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [activateCompany, dbUser?.uid, pendingInviteToken, showToast, user]);
 
-  TOAST
-
-  =========================================
-  */
-
-  const showToast = (message, type = "success") => {
-    setToast({
-      message,
-      type,
-    });
-
-    setTimeout(() => {
-      setToast(null);
-    }, 4000);
+  const handleSelectCompany = async (selectedCompany) => {
+    if (!user) return;
+    try {
+      setCompanyLoading(true);
+      const token = await user.getIdToken();
+      const response = await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: "switch", companyId: selectedCompany.id }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "İşletme açılamadı.");
+      activateCompany(selectedCompany);
+    } catch (error) { setCompanyError(error?.message || "İşletme açılamadı."); }
+    finally { setCompanyLoading(false); }
   };
 
   /*
@@ -231,19 +290,11 @@ export default function StockApp() {
           setUser(firebaseUser);
           if (!firebaseUser) {
             setDbUser(null);
-            try {
-              await signInAnonymously(auth);
-            } catch (anonymousError) {
-              console.error("Anonymous session could not be created:", anonymousError);
-              setIsAuthLoading(false);
-            }
+            setIsAuthLoading(false);
             return;
           }
           try {
-            const userReference = doc(
-              getPublicCollection("users"),
-              firebaseUser.uid
-            );
+            const userReference = doc(db, "users", firebaseUser.uid);
             const userSnapshot = await getDoc(userReference);
             if (userSnapshot.exists()) {
               const profile = {
@@ -251,9 +302,7 @@ export default function StockApp() {
                 ...userSnapshot.data(),
               };
               setDbUser(profile);
-              const isGoogleUser = firebaseUser.providerData.some((provider) => provider.providerId === "google.com");
-              const reviewKey = `vertice_google_profile_reviewed_${firebaseUser.uid}`;
-              setGoogleProfileReviewRequired(isGoogleUser && !window.localStorage.getItem(reviewKey));
+              setGoogleProfileReviewRequired(false);
             } else {
               setDbUser(null);
             }
@@ -286,7 +335,7 @@ export default function StockApp() {
   */
 
   useEffect(() => {
-    if (!user || !dbUser) {
+    if (!user || !dbUser || !company) {
       return;
     }
 
@@ -362,7 +411,29 @@ export default function StockApp() {
       unsubscribeTransactions();
       unsubscribeInventoryCounts();
     };
-  }, [user, dbUser]);
+  }, [user, dbUser, company]);
+
+  useEffect(() => {
+    if (!user || !company) return;
+    return onSnapshot(
+      doc(db, "companies", company.id, "members", user.uid),
+      (snapshot) => {
+        const membership = snapshot.data();
+        if (!snapshot.exists() || membership?.status !== "ACTIVE") {
+          activateCompany(null);
+          setCompanyError("Bu işletmedeki üyeliğiniz artık aktif değil.");
+          return;
+        }
+        const tenantRole = membership.role || "PERSONNEL";
+        setCompany((current) => current ? { ...current, membership } : current);
+        setDbUser((current) => current ? { ...current, tenantRole, role: tenantRole === "PERSONNEL" ? "staff" : "admin" } : current);
+      },
+      () => {
+        activateCompany(null);
+        setCompanyError("İşletme üyeliğiniz doğrulanamadı. Lütfen yeniden seçin.");
+      }
+    );
+  }, [activateCompany, company?.id, user]);
 
   useEffect(() => {
     if (!pendingProductId || products.length === 0) {
@@ -387,7 +458,7 @@ export default function StockApp() {
   */
 
   useEffect(() => {
-    if (!user || !dbUser) {
+    if (!user || !dbUser || !company) {
       return;
     }
 
@@ -425,7 +496,7 @@ export default function StockApp() {
         unsubscribe();
       }
     };
-  }, [user, dbUser]);
+  }, [user, dbUser, company]);
 
   /*
 
@@ -438,7 +509,7 @@ export default function StockApp() {
 
   const registerCurrentDeviceForPush = useCallback(
     async ({ interactive = false } = {}) => {
-      if (!user || !dbUser) return false;
+      if (!user || !dbUser || !company) return false;
 
       if (
         typeof window === "undefined" ||
@@ -478,7 +549,7 @@ export default function StockApp() {
         return false;
       }
     },
-    [dbUser, user]
+    [company, dbUser, user]
   );
 
   const handleEnableNotifications = async () => {
@@ -501,6 +572,7 @@ export default function StockApp() {
     if (
       !user ||
       !dbUser ||
+      !company ||
       typeof window === "undefined" ||
       !("Notification" in window) ||
       Notification.permission !== "granted"
@@ -509,72 +581,7 @@ export default function StockApp() {
     }
 
     registerCurrentDeviceForPush();
-  }, [dbUser, registerCurrentDeviceForPush, user]);
-
-  const legacyHandleEnableNotifications = async () => {
-    if (!user) {
-      showToast("Kullanıcı oturumu bulunamadı.", "error");
-      return;
-    }
-    setNotificationLoading(true);
-    try {
-      const token = await getFCMToken();
-      if (!token) {
-        throw new Error("FCM_TOKEN_EMPTY");
-      }
-      const deviceReference = doc(getPublicCollection("devices"), user.uid);
-      await setDoc(
-        deviceReference,
-        {
-          uid: user.uid,
-          userName: dbUser?.name || "",
-          role: dbUser?.role || "personel",
-          token,
-          notificationsEnabled: true,
-          platform:
-            typeof navigator !== "undefined"
-              ? navigator.platform || "web"
-              : "web",
-          userAgent:
-            typeof navigator !== "undefined" ? navigator.userAgent : "",
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          merge: true,
-        }
-      );
-      setNotificationStatus("granted");
-      showToast("Telefon bildirimleri etkinleştirildi.", "success");
-    } catch (error) {
-      console.error("Bildirim etkinleştirme hatası:", error);
-      if (error?.message === "NOTIFICATION_PERMISSION_DENIED") {
-        setNotificationStatus("denied");
-        showToast(
-          "Bildirim izni engellenmiş. Tarayıcı site ayarlarından bildirim iznini açın.",
-          "error"
-        );
-        return;
-      }
-      if (
-        error?.message === "NOTIFICATION_NOT_SUPPORTED" ||
-        error?.message === "MESSAGING_NOT_SUPPORTED"
-      ) {
-        setNotificationStatus("unsupported");
-        showToast("Bu tarayıcı push bildirimlerini desteklemiyor.", "error");
-        return;
-      }
-      if (error?.message === "VAPID_KEY_MISSING") {
-        showToast(
-          "VAPID anahtarı bulunamadı. Vercel ayarlarını kontrol edin.",
-          "error"
-        );
-        return;
-      }
-      showToast("Bildirim sistemi etkinleştirilemedi.", "error");
-    } finally {
-      setNotificationLoading(false);
-    }
-  };
+  }, [company, dbUser, registerCurrentDeviceForPush, user]);
 
   /*
 
@@ -617,11 +624,7 @@ export default function StockApp() {
       setGoogleSignInError("");
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      if (auth.currentUser?.isAnonymous) {
-        await linkWithPopup(auth.currentUser, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Google giriş hatası:", error);
       if (error?.code === "auth/credential-already-in-use") {
@@ -647,6 +650,44 @@ export default function StockApp() {
       setGoogleSignInError(message);
       setGoogleSignInLoading(false);
     }
+  };
+
+  const handleEmailAuth = async ({ email, password, createAccount = false }) => {
+    try {
+      setGoogleSignInLoading(true);
+      setGoogleSignInError("");
+      if (createAccount) await createUserWithEmailAndPassword(auth, email, password);
+      else await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      const messages = { "auth/invalid-credential": "E-posta veya şifre hatalı.", "auth/email-already-in-use": "Bu e-posta zaten kayıtlı.", "auth/weak-password": "Şifre en az 6 karakter olmalı.", "auth/invalid-email": "Geçerli bir e-posta girin.", "auth/network-request-failed": "İnternet bağlantınızı kontrol edin." };
+      setGoogleSignInError(messages[error?.code] || "E-posta ile giriş tamamlanamadı.");
+      setGoogleSignInLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (email) => {
+    try {
+      if (!email) throw new Error("EMAIL_REQUIRED");
+      await sendPasswordResetEmail(auth, email);
+      showToast("Şifre yenileme bağlantısı e-posta adresinize gönderildi.", "success");
+    } catch { setGoogleSignInError("Şifre yenilemek için geçerli e-posta adresinizi girin."); }
+  };
+
+  const runCompanyOperation = async (action, value) => {
+    if (!user) return;
+    try {
+      setCompanyLoading(true);
+      setCompanyError("");
+      const token = await user.getIdToken();
+      const response = await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(action === "create" ? { action, name: value } : { action, joinCode: value }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "İşletme işlemi tamamlanamadı.");
+      const selectedCompany = { ...payload.company, membership: payload.membership };
+      setCompanies((current) => [...current.filter((item) => item.id !== selectedCompany.id), selectedCompany]);
+      activateCompany(selectedCompany);
+      if (payload.joinCode) showToast(`Katılım kodunuz: ${payload.joinCode}`, "success");
+    } catch (error) { setCompanyError(error.message || "İşletme işlemi tamamlanamadı."); }
+    finally { setCompanyLoading(false); }
   };
 
   /*
@@ -1258,6 +1299,10 @@ export default function StockApp() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setActiveCompanyId("");
+      window.localStorage.removeItem("envantra_active_company_id");
+      setCompany(null);
+      setCompanies([]);
       setCurrentView("dashboard");
       setSelectedProduct(null);
       setIsScannerOpen(false);
@@ -1325,25 +1370,7 @@ export default function StockApp() {
   */
 
   if (!user) {
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-gray-950 text-white p-4">
-        <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
-          <h1 className="text-2xl font-black">Envantra</h1>
-          <p className="text-gray-400 mt-3">Firebase kullanıcı oturumu oluşturulamadı.</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-6"
-          >
-            Tekrar Dene
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  if (user.isAnonymous) {
-    return <GoogleSignInView loading={googleSignInLoading} error={googleSignInError} onSignIn={handleGoogleSignIn} />;
+    return <GoogleSignInView loading={googleSignInLoading} error={googleSignInError} onSignIn={handleGoogleSignIn} onEmailAuth={handleEmailAuth} onPasswordReset={handlePasswordReset} />;
   }
 
   /*
@@ -1367,6 +1394,14 @@ export default function StockApp() {
         />
       </>
     );
+  }
+
+  if (companyLoading && companies.length === 0 && !companyError) {
+    return <main className="flex min-h-screen items-center justify-center bg-gray-950 text-white"><div className="text-center"><div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-800 border-t-blue-500" /><p className="mt-4 text-sm text-gray-500">İşletmeler yükleniyor...</p></div></main>;
+  }
+
+  if (!company) {
+    return <CompanyOnboardingView companies={companies} loading={companyLoading} error={companyError} invitePending={Boolean(pendingInviteToken && companyLoading)} onSelect={handleSelectCompany} onCreate={(name) => runCompanyOperation("create", name)} onJoin={(code) => runCompanyOperation("join", code)} />;
   }
 
   /*
@@ -1507,12 +1542,19 @@ export default function StockApp() {
       {currentView === "profile" && (
         <ProfileScreen
           dbUser={dbUser}
+          company={company}
+          companies={companies}
           notificationStatus={notificationStatus}
           notificationLoading={notificationLoading}
           onEnableNotifications={handleEnableNotifications}
           onBack={handleBackToDashboard}
+          onSwitchCompany={() => activateCompany(null)}
+          onManageCompany={() => setCurrentView("company_access")}
           onLogout={handleLogout}
         />
+      )}
+      {currentView === "company_access" && (
+        <CompanyAccessView company={company} user={user} onBack={() => setCurrentView("profile")} showToast={showToast} />
       )}
     </div>
   );
@@ -1554,10 +1596,14 @@ PROFİL
 
 function ProfileScreen({
   dbUser,
+  company,
+  companies,
   notificationStatus,
   notificationLoading,
   onEnableNotifications,
   onBack,
+  onSwitchCompany,
+  onManageCompany,
   onLogout,
 }) {
   const notificationsEnabled = notificationStatus === "granted";
@@ -1582,8 +1628,15 @@ function ProfileScreen({
           </div>
           <h2 className="text-2xl font-black text-white mt-5">{dbUser?.name}</h2>
           <span className="inline-block mt-3 px-4 py-1.5 bg-gray-950 border border-gray-800 rounded-full text-xs text-blue-400 font-bold uppercase">
-            {dbUser?.role === "admin" ? "Yönetici" : "Personel"}
+            {dbUser?.tenantRole === "OWNER" ? "İşletme sahibi" : dbUser?.tenantRole === "ADMIN" ? "Yönetici" : "Personel"}
           </span>
+        </div>
+
+        <div className="mt-6 bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 className="text-white font-black text-lg">Aktif İşletme</h3>
+          <p className="mt-2 text-sm text-gray-500">{company?.name} · {dbUser?.tenantRole || "PERSONNEL"}</p>
+          {(dbUser?.tenantRole === "OWNER" || dbUser?.tenantRole === "ADMIN") && <button type="button" onClick={onManageCompany} className="mt-4 w-full rounded-xl bg-blue-600 py-3 font-bold text-white">Personel ve Davet Yönetimi</button>}
+          <button type="button" onClick={onSwitchCompany} className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-950 py-3 font-bold text-gray-300">{companies?.length > 1 ? "İşletme Değiştir veya Ekle" : "İşletme Ekle veya Katıl"}</button>
         </div>
         
         {/* BİLDİRİMLER */}

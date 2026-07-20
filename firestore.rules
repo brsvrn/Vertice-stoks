@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function membership(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)).data;
+    }
+
+    function activeMember(companyId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid))
+        && membership(companyId).status == 'ACTIVE';
+    }
+
+    function manager(companyId) {
+      return activeMember(companyId)
+        && (membership(companyId).role == 'OWNER' || membership(companyId).role == 'ADMIN');
+    }
+
+    function owner(companyId) {
+      return activeMember(companyId) && membership(companyId).role == 'OWNER';
+    }
+
+    match /users/{userId} {
+      allow read, create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /companies/{companyId} {
+      allow read: if activeMember(companyId);
+      allow create, delete: if false;
+      allow update: if owner(companyId)
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      match /members/{userId} {
+        allow read: if activeMember(companyId);
+        allow write: if false;
+      }
+
+      match /settings/{settingId} {
+        allow read: if manager(companyId);
+        allow write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read: if manager(companyId);
+        allow write: if false;
+      }
+
+      match /products/{productId} {
+        allow read: if activeMember(companyId);
+        allow create, update, delete: if manager(companyId);
+      }
+
+      match /batches/{batchId} {
+        allow read, create, update: if activeMember(companyId);
+        allow delete: if manager(companyId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read, create: if activeMember(companyId);
+        allow update, delete: if manager(companyId);
+      }
+
+      match /inventoryCounts/{countId} {
+        allow read, create, update: if activeMember(companyId);
+        allow delete: if manager(companyId);
+      }
+
+      match /devices/{deviceId} {
+        allow read: if activeMember(companyId);
+        allow create, update: if activeMember(companyId)
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if activeMember(companyId)
+          && (resource.data.uid == request.auth.uid || manager(companyId));
+      }
+
+      match /notificationLogs/{logId} {
+        allow read: if manager(companyId);
+        allow write: if false;
+      }
+
+      match /{unknownCollection}/{documentId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /companyJoinCodes/{codeHash} {
+      allow read, write: if false;
+    }
+
+    match /companyInviteTokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    match /artifacts/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
