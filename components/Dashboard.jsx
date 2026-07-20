@@ -104,6 +104,7 @@ export default function Dashboard({
         </div>
       </header>
 
+      <main className="flex-1 overflow-y-auto pb-24 px-5 pt-4">
         {/* İş Durumu (Bugün - Güncel) */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
           <div className="flex justify-between items-center mb-2">
