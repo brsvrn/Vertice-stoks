@@ -227,14 +227,16 @@ export default function StockApp() {
 
     const startAuthentication = async () => {
       try {
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
         unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
           setUser(firebaseUser);
           if (!firebaseUser) {
             setDbUser(null);
-            setIsAuthLoading(false);
+            try {
+              await signInAnonymously(auth);
+            } catch (anonymousError) {
+              console.error("Anonymous session could not be created:", anonymousError);
+              setIsAuthLoading(false);
+            }
             return;
           }
           try {
@@ -1256,6 +1258,10 @@ export default function StockApp() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setCurrentView("dashboard");
+      setSelectedProduct(null);
+      setIsScannerOpen(false);
+      setIsAddScannerOpen(false);
       setDbUser(null);
       setUser(null);
       showToast("Çıkış yapıldı.", "success");
