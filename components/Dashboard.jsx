@@ -1,26 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
-  AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
   Bell,
   Camera,
-  CheckCircle2,
-  ChevronRight,
-  ClipboardCheck,
-  History,
-  Home,
   Package,
-  Plus,
   Search,
-  User,
-  Warehouse,
-  Wine,
-  X,
-  Menu,
   CalendarDays,
 } from "lucide-react";
 
@@ -64,7 +52,7 @@ export default function Dashboard({
   onOpenPrintCenter,
   onOpenSKTCalendar,
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
+}) {
 
   const stockByProduct = useMemo(() => batches.reduce((map, batch) => {
     const productId = batch.productId;
