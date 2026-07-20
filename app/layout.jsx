@@ -1,5 +1,6 @@
 import "./globals.css";
 import PWARegister from "../components/PWARegister";
+import NetworkStatus from "../components/NetworkStatus";
 
 export const metadata = {
   title: "Vertice Stok",
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="tr">
       <body>
         <PWARegister />
+        <NetworkStatus />
         {children}
       </body>
     </html>

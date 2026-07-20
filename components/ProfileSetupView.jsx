@@ -11,8 +11,6 @@ export default function ProfileSetupView({
   const [role, setRole] = useState("staff");
   const [adminPin, setAdminPin] = useState("");
 
-  const ADMIN_SECRET_PIN = "1453";
-
   const handleRegister = async () => {
     const cleanName = name.trim();
 
@@ -21,13 +19,8 @@ export default function ProfileSetupView({
       return;
     }
 
-    if (role === "admin" && adminPin !== ADMIN_SECRET_PIN) {
-      showToast("Hatalı Yönetici PIN Kodu!", "error");
-      return;
-    }
-
     try {
-      await onSetup(cleanName, role);
+      await onSetup(cleanName, role, adminPin);
     } catch (error) {
       console.error("Profil oluşturma hatası:", error);
       showToast("Profil oluşturulamadı.", "error");

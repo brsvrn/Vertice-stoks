@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -64,6 +65,9 @@ export default function InventoryView({
 
   const [tableMode, setTableMode] =
     useState("current");
+
+  const [savedDraft, setSavedDraft] =
+    useState(null);
   const [
     isSaving,
     setIsSaving,
@@ -149,6 +153,53 @@ export default function InventoryView({
         "Yazdırma penceresi açılamadı. Tarayıcınızın açılır pencere iznini kontrol edin.",
         "error"
       );
+    }
+  };
+
+  const draftStorageKey = `vertice_inventory_draft_${location.toLowerCase()}`;
+
+  useEffect(() => {
+    try {
+      const savedValue = window.localStorage.getItem(draftStorageKey);
+      const draft = savedValue ? JSON.parse(savedValue) : null;
+      setSavedDraft(draft?.counts && typeof draft.counts === "object" ? draft : null);
+    } catch (error) {
+      console.error("Sayım taslağı okunamadı:", error);
+      setSavedDraft(null);
+    }
+  }, [draftStorageKey]);
+
+  const saveDraft = () => {
+    if (Object.keys(counts).length === 0) {
+      showToast?.("Kaydedilecek sayım girişi bulunmuyor.", "error");
+      return;
+    }
+
+    const draft = { counts, location, savedAt: new Date().toISOString() };
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      setSavedDraft(draft);
+      showToast?.("Sayım taslağı bu cihazda kaydedildi.", "success");
+    } catch (error) {
+      console.error("Sayım taslağı kaydedilemedi:", error);
+      showToast?.("Sayım taslağı kaydedilemedi.", "error");
+    }
+  };
+
+  const loadDraft = () => {
+    if (!savedDraft?.counts) return;
+    setCounts(savedDraft.counts);
+    showToast?.("Kaydedilen sayım taslağı yüklendi.", "success");
+  };
+
+  const clearDraft = () => {
+    try {
+      window.localStorage.removeItem(draftStorageKey);
+      setSavedDraft(null);
+      showToast?.("Sayım taslağı silindi.", "success");
+    } catch (error) {
+      console.error("Sayım taslağı silinemedi:", error);
+      showToast?.("Sayım taslağı silinemedi.", "error");
     }
   };
 
@@ -1477,6 +1528,22 @@ export default function InventoryView({
               Bar
             </button>
 
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={saveDraft}
+              className="flex-1 bg-gray-800 border border-gray-700 text-gray-200 font-bold py-3 rounded-xl text-sm"
+            >
+              Taslağı Kaydet
+            </button>
+            {savedDraft && (
+              <>
+                <button type="button" onClick={loadDraft} className="flex-1 bg-violet-600 text-white font-bold py-3 rounded-xl text-sm">Taslağa Devam Et</button>
+                <button type="button" onClick={clearDraft} className="px-3 bg-gray-800 text-gray-400 font-bold rounded-xl text-xs">Sil</button>
+              </>
+            )}
           </div>
 
           <button
