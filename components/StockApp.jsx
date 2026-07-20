@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   AlertCircle,
   CheckCircle2,
+  PlusCircle,
 } from "lucide-react";
 
 import {
@@ -1616,6 +1617,7 @@ export default function StockApp() {
           onOpenReports={() => setCurrentView("reports")}
           onOpenHistory={() => setCurrentView("inventory_history")}
           onOpenSKTCalendar={() => setCurrentView("skt_calendar")}
+          onOpenInventory={() => setCurrentView("inventory")}
           onBack={handleBackToDashboard}
         />
       )}
@@ -1638,10 +1640,10 @@ export default function StockApp() {
             onClick={() => setCurrentView("dashboard")} 
           />
           <NavButton 
-            icon={<Package size={22} />} 
-            label="Stok" 
-            active={currentView === "inventory" || currentView === "product_detail"} 
-            onClick={() => setCurrentView("inventory")} 
+            icon={<PlusCircle size={22} />} 
+            label="Ürün Ekle" 
+            active={currentView === "admin_add"} 
+            onClick={() => setCurrentView("admin_add")} 
           />
           <NavButton 
             icon={<Scan size={22} />} 
@@ -1654,7 +1656,7 @@ export default function StockApp() {
             label="Uyarılar" 
             active={currentView === "notifications"} 
             onClick={() => setCurrentView("notifications")} 
-            badge={activeNotifications?.length || 0}
+            badge={unreadNotifications?.length || 0}
           />
           <NavButton 
             icon={<MoreHorizontal size={22} />} 

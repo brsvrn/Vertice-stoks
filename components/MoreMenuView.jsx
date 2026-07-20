@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Printer, FileText, History, CalendarDays } from "lucide-react";
+import { User, Printer, FileText, History, CalendarDays, Package } from "lucide-react";
 
 export default function MoreMenuView({
   dbUser,
@@ -9,6 +9,7 @@ export default function MoreMenuView({
   onOpenReports,
   onOpenHistory,
   onOpenSKTCalendar,
+  onOpenInventory,
 }) {
   const roleName =
     dbUser?.tenantRole === "OWNER"
@@ -41,6 +42,7 @@ export default function MoreMenuView({
 
         {/* Menü Öğeleri */}
         <div className="space-y-3">
+          <MenuButton icon={<Package size={20} />} label="Stok Yönetimi" onClick={onOpenInventory} />
           <MenuButton icon={<CalendarDays size={20} />} label="SKT Takvimi" onClick={onOpenSKTCalendar} />
           <MenuButton icon={<Printer size={20} />} label="Etiket Yazdırma Merkezi" onClick={onOpenPrintCenter} />
           <MenuButton icon={<FileText size={20} />} label="Raporlar" onClick={onOpenReports} />
