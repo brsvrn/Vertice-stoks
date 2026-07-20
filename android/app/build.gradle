@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        release {
+            storeFile file('envantra-release.jks')
+            storePassword 'Envantra2024!'
+            keyAlias 'envantra-key'
+            keyPassword 'Envantra2024!'
+        }
+    }
     namespace = "com.envantra.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
@@ -20,6 +28,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 }
