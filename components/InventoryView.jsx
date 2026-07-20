@@ -62,6 +62,9 @@ export default function InventoryView({
   const [activeSection, setActiveSection] =
     useState("count");
 
+  const [tableMode, setTableMode] =
+    useState("current");
+
   const [
     isSaving,
     setIsSaving,
@@ -1616,6 +1619,30 @@ export default function InventoryView({
             </div>
 
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-2 gap-2 border-b border-gray-800 p-3">
+                <button
+                  type="button"
+                  onClick={() => setTableMode("current")}
+                  className={`rounded-lg py-2.5 text-xs font-bold ${
+                    tableMode === "current"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-950 text-gray-500"
+                  }`}
+                >
+                  Güncel Stok Tablosu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTableMode("count")}
+                  className={`rounded-lg py-2.5 text-xs font-bold ${
+                    tableMode === "count"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-950 text-gray-500"
+                  }`}
+                >
+                  Sayım Tablosu
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] text-left text-sm">
                   <thead className="bg-gray-950 text-gray-500 text-[10px] uppercase tracking-wide">
@@ -1625,7 +1652,9 @@ export default function InventoryView({
                       <th className="px-4 py-3 font-bold text-right">Depo</th>
                       <th className="px-4 py-3 font-bold text-right">Bar</th>
                       <th className="px-4 py-3 font-bold text-right">Toplam</th>
-                      <th className="px-4 py-3 font-bold text-center">Sayım</th>
+                      {tableMode === "count" && (
+                        <th className="px-4 py-3 font-bold text-center">Sayım</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
@@ -1636,7 +1665,9 @@ export default function InventoryView({
                         <td className="px-4 py-3 text-right text-gray-300">{row.depotStock}</td>
                         <td className="px-4 py-3 text-right text-gray-300">{row.barStock}</td>
                         <td className="px-4 py-3 text-right font-black text-blue-400">{row.totalStock}</td>
-                        <td className="px-4 py-3"><div className="h-8 min-w-20 rounded-lg border border-dashed border-gray-700" /></td>
+                        {tableMode === "count" && (
+                          <td className="px-4 py-3"><div className="h-8 min-w-20 rounded-lg border border-dashed border-gray-700" /></td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
