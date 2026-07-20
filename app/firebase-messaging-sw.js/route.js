@@ -95,14 +95,14 @@ self.addEventListener("fetch", (event) => {
 messaging.onBackgroundMessage((payload) => {
 
   console.log(
-    "[Stockera] Arka plan bildirimi:",
+    "[Envantra] Arka plan bildirimi:",
     payload
   );
 
   const notificationTitle =
     payload.notification?.title ||
     payload.data?.title ||
-    "Stockera";
+    "Envantra";
 
   const notificationBody =
     payload.notification?.body ||

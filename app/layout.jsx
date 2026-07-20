@@ -3,9 +3,9 @@ import PWARegister from "../components/PWARegister";
 import NetworkStatus from "../components/NetworkStatus";
 
 export const metadata = {
-  title: "Stockera",
+  title: "Envantra",
   description:
-    "Stockera - QR destekli stok takip ve envanter yönetim sistemi",
+    "Envantra - QR destekli stok takip ve envanter yönetim sistemi",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -25,7 +25,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Stockera",
+    title: "Envantra",
   },
 };
 

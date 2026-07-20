@@ -249,14 +249,14 @@ export default function PermissionsSetupView({
 
             <img
               src="/icons/icon-192.png"
-              alt="Stockera"
+              alt="Envantra"
               className="w-full h-full object-cover"
             />
 
           </div>
 
           <h1 className="text-3xl font-black mt-6">
-            Stockera
+            Envantra
           </h1>
 
           <p className="text-gray-500 text-sm mt-2">
@@ -286,7 +286,7 @@ export default function PermissionsSetupView({
               </h2>
 
               <p className="text-gray-500 text-sm leading-6 mt-1">
-                Stockera'nın tüm özelliklerini kullanabilmek için aşağıdaki izinlere ihtiyacımız var.
+                Envantra'nın tüm özelliklerini kullanabilmek için aşağıdaki izinlere ihtiyacımız var.
               </p>
 
             </div>

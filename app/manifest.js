@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "Stockera",
-    short_name: "Stockera",
+    name: "Envantra",
+    short_name: "Envantra",
 
     description:
       "QR ve barkod destekli stok, sayım ve envanter yönetim sistemi.",
