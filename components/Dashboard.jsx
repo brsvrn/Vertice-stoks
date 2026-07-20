@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Bell,
+  Boxes,
   Camera,
   CheckCircle2,
   ClipboardCheck,
@@ -158,13 +159,14 @@ export default function Dashboard({
   );
 
   return (
-    <div className="soft-dashboard flex flex-col h-full bg-gray-950 text-gray-100">
+    <div className="envantra-dashboard flex flex-col h-full bg-gray-950 text-gray-100">
       {/* HEADER */}
-      <header className="soft-dashboard__header bg-gray-900 border-b border-gray-800 rounded-b-3xl shadow-xl relative z-10">
+      <header className="envantra-dashboard__header bg-gray-900 border-b border-gray-800 shadow-xl relative z-10">
         <div className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="min-w-0">
-              <h1 className="text-sm font-black text-white tracking-tight">
+              <h1 className="flex items-center gap-2 text-base font-black text-white tracking-tight uppercase">
+                <span className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center"><Boxes size={18} /></span>
                 Envantra
               </h1>
 
@@ -198,7 +200,7 @@ export default function Dashboard({
 
           {/* OPERASYON ÖZETİ */}
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="soft-dashboard__primary-stat col-span-2 rounded-2xl p-4">
+            <div className="envantra-dashboard__primary-stat col-span-2 rounded-2xl p-4">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
                 Kayıtlı Ürün
               </p>
@@ -209,7 +211,7 @@ export default function Dashboard({
               <p className="text-xs text-gray-500 mt-2">Stok operasyonunuzun güncel özeti</p>
             </div>
 
-            <div className="soft-dashboard__critical-stat bg-gray-950 border border-gray-800 rounded-xl p-3">
+            <div className="envantra-dashboard__critical-stat bg-gray-950 border border-gray-800 rounded-xl p-3">
               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
                 Toplam Stok
               </p>

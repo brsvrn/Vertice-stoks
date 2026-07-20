@@ -14,9 +14,9 @@ export default function manifest() {
 
     orientation: "portrait",
 
-    background_color: "#030712",
+    background_color: "#f8f9ff",
 
-    theme_color: "#030712",
+    theme_color: "#003d9b",
 
     categories: [
       "business",
