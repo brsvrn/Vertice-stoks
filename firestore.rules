@@ -51,8 +51,8 @@ service cloud.firestore {
       }
 
       match /products/{productId} {
-        allow read: if activeMember(companyId);
-        allow create, update, delete: if manager(companyId);
+        allow read, create, update: if activeMember(companyId);
+        allow delete: if manager(companyId);
       }
 
       match /batches/{batchId} {

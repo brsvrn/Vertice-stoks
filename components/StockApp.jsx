@@ -1654,7 +1654,7 @@ export default function StockApp() {
           <NavButton 
             icon={<User size={22} />} 
             label="Profil" 
-            active={currentView === "profile"} 
+            active={currentView === "profile" || currentView === "company_access"} 
             onClick={() => setCurrentView("profile")} 
           />
         </div>
