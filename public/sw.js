@@ -1,10 +1,12 @@
-const CACHE_NAME = "vertice-stok-v2";
+const CACHE_NAME = "envantra-brand-v5";
 
 const APP_SHELL = [
   "/",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/icons/icon-maskable-512.png",
+  "/icons/apple-touch-icon.png",
   "/offline.html",
 ];
 

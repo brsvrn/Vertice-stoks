@@ -20,7 +20,8 @@ export const metadata = {
         type: "image/png",
       },
     ],
-    apple: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+    shortcut: "/icons/favicon-32.png",
   },
   appleWebApp: {
     capable: true,

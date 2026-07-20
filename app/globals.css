@@ -101,6 +101,42 @@ input::placeholder, textarea::placeholder { color: #737685; }
 .envantra-dashboard__critical-stat + .bg-gray-950 { background: #fff !important; border-color: #f2b8b5 !important; }
 .envantra-dashboard nav { box-shadow: 0 -6px 22px rgba(11, 28, 48, .08); }
 
+/* Envantra brand system and startup experience. */
+.envantra-brand { display: flex; align-items: center; gap: 1rem; }
+.envantra-brand__icon { width: 82px; height: 82px; flex: 0 0 auto; border-radius: 22px; object-fit: cover; box-shadow: 0 16px 32px rgba(0, 45, 115, .2); }
+.envantra-brand__copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; }
+.envantra-brand__name {
+  color: #061b46;
+  background: linear-gradient(100deg, #061b46 5%, #003d9b 48%, #00a88d 70%, #087cf0 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: clamp(1.65rem, 8vw, 2.35rem);
+  font-weight: 900;
+  letter-spacing: .02em;
+  line-height: .95;
+}
+.envantra-brand__tagline { margin-top: .55rem; color: #5f6372; font-size: .58rem; font-weight: 800; letter-spacing: .23em; white-space: nowrap; }
+.envantra-brand--compact { gap: .7rem; }
+.envantra-brand--compact .envantra-brand__icon { width: 42px; height: 42px; border-radius: 12px; box-shadow: 0 8px 18px rgba(0, 45, 115, .16); }
+.envantra-brand--compact .envantra-brand__name { font-size: 1rem; }
+.envantra-brand--compact .envantra-brand__tagline { margin-top: .25rem; font-size: .43rem; letter-spacing: .12em; }
+
+.envantra-splash { position: relative; display: grid; min-height: 100dvh; place-items: center; overflow: hidden; padding: 2rem 1.25rem; background: linear-gradient(150deg, #ffffff 0%, #f2f7ff 52%, #e9f8f8 100%); color: #061b46; }
+.envantra-splash::after { position: absolute; right: 0; bottom: 0; left: 0; height: 10px; content: ""; background: linear-gradient(90deg, #041434, #0052cc, #00cda8, #087cf0); }
+.envantra-splash__glow { position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(18px); opacity: .13; }
+.envantra-splash__glow--one { top: -180px; right: -150px; background: #0052cc; }
+.envantra-splash__glow--two { bottom: -190px; left: -160px; background: #00cda8; }
+.envantra-splash__content { position: relative; z-index: 1; width: min(100%, 430px); text-align: center; }
+.envantra-splash__brand { justify-content: center; }
+.envantra-splash__features { display: flex; align-items: center; justify-content: center; gap: .55rem; margin-top: 2.4rem; color: #536071; font-size: .67rem; font-weight: 800; }
+.envantra-splash__features i { width: 3px; height: 3px; border-radius: 50%; background: #00a88d; }
+.envantra-splash__progress { position: relative; width: min(78%, 290px); height: 5px; margin: 1.5rem auto 0; overflow: hidden; border-radius: 999px; background: rgba(0, 61, 155, .1); }
+.envantra-splash__progress span { position: absolute; inset: 0 auto 0 -45%; width: 45%; border-radius: inherit; background: linear-gradient(90deg, #003d9b, #087cf0, #00cda8); animation: envantra-loading 1.35s ease-in-out infinite; }
+.envantra-splash p { margin: .9rem 0 0; color: #687282; font-size: .78rem; font-weight: 650; }
+@keyframes envantra-loading { 0% { transform: translateX(0); } 100% { transform: translateX(325%); } }
+@media (prefers-reduced-motion: reduce) { .envantra-splash__progress span { animation-duration: 3s; } }
+
 /* A4 label preview. */
 .label-sheet { min-width: 640px; }
 .label-grid { grid-template-columns: repeat(2, 300px) !important; }

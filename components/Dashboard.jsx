@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   BarChart3,
   Bell,
-  Boxes,
   Camera,
   CheckCircle2,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
   Wine,
   X,
 } from "lucide-react";
+import BrandLogo from "./BrandLogo";
 
 function asDate(value) {
   if (!value) return null;
@@ -151,10 +151,7 @@ export default function Dashboard({
       <header className="envantra-dashboard__header relative z-10 border-b border-gray-800 bg-gray-900">
         <div className="p-4 sm:p-5">
           <div className="flex items-center justify-between">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500"><Boxes size={21} /></span>
-              <div className="min-w-0"><h1 className="truncate text-base font-black tracking-tight text-white">ENVANTRA</h1><p className="mt-0.5 text-[10px] font-bold tracking-[.12em] text-gray-500">AKILLI STOK YÖNETİMİ</p></div>
-            </div>
+            <BrandLogo compact className="min-w-0" />
             <div className="flex items-center gap-2">
               <button type="button" onClick={onOpenNotifications} className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gray-800 text-white" aria-label="Bildirimleri aç"><Bell size={20} />{notifications.length > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-gray-900 bg-red-500 px-1 text-[9px] font-black text-white">{notifications.length > 99 ? "99+" : notifications.length}</span>}</button>
               <button type="button" onClick={onOpenProfile} className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white" aria-label="Profili aç">{(dbUser?.name || "K").trim().charAt(0).toLocaleUpperCase("tr-TR")}</button>

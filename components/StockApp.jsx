@@ -44,6 +44,7 @@ import PermissionsSetupView from "./PermissionsSetupView";
 import PrintCenterView from "./PrintCenterView";
 import CompanyOnboardingView from "./CompanyOnboardingView";
 import CompanyAccessView from "./CompanyAccessView";
+import AppLoadingScreen from "./AppLoadingScreen";
 import { parseProductReference } from "../lib/qr";
 import { getActiveCompanyId, setActiveCompanyId } from "../lib/tenantRuntime";
 
@@ -72,8 +73,8 @@ async function showForegroundPush(payload) {
   const body = payload?.notification?.body || "Yeni bir bildiriminiz var.";
   const options = {
     body,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
     tag: payload?.data?.notificationId || payload?.data?.type || "vertice-stok",
     data: { url: payload?.data?.url || "/" },
   };
@@ -1326,7 +1327,7 @@ export default function StockApp() {
   */
 
   if (permissionsSetupCompleted === null) {
-    return <div />;
+    return <AppLoadingScreen message="Uygulama hazırlanıyor..." />;
   }
 
   if (!permissionsSetupCompleted) {
@@ -1349,15 +1350,7 @@ export default function StockApp() {
   */
 
   if (isAuthLoading) {
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-800 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <h1 className="text-xl font-black">Envantra</h1>
-          <p className="text-gray-500 text-sm mt-2">Sistem yükleniyor...</p>
-        </div>
-      </main>
-    );
+    return <AppLoadingScreen message="Güvenli oturumunuz yükleniyor..." />;
   }
 
   /*
@@ -1397,7 +1390,7 @@ export default function StockApp() {
   }
 
   if (companyLoading && companies.length === 0 && !companyError) {
-    return <main className="flex min-h-screen items-center justify-center bg-gray-950 text-white"><div className="text-center"><div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-800 border-t-blue-500" /><p className="mt-4 text-sm text-gray-500">İşletmeler yükleniyor...</p></div></main>;
+    return <AppLoadingScreen message="İşletmeniz ve stoklarınız yükleniyor..." />;
   }
 
   if (!company) {

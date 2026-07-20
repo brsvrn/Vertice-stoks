@@ -35,8 +35,8 @@ firebase.initializeApp(
 const messaging = firebase.messaging();
 
 /* PWA cache and Firebase messaging must share a single root worker. */
-const CACHE_NAME = "vertice-stok-v4";
-const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "envantra-brand-v5";
+const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -113,9 +113,9 @@ messaging.onBackgroundMessage((payload) => {
 
     body: notificationBody,
 
-    icon: "/icon-192.png",
+    icon: "/icons/icon-192.png",
 
-    badge: "/icon-192.png",
+    badge: "/icons/icon-192.png",
 
     tag:
       payload.data?.notificationId ||
