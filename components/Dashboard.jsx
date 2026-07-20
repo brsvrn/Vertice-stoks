@@ -52,7 +52,6 @@ export default function Dashboard({
   onOpenPrintCenter,
   onOpenSKTCalendar,
 }) {
-}) {
 
   const stockByProduct = useMemo(() => batches.reduce((map, batch) => {
     const productId = batch.productId;
