@@ -220,10 +220,21 @@ export default function QRScannerModal({
     };
   }, [startScanner, stopScanner]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     stopScanner();
     onClose();
-  };
+  }, [stopScanner, onClose]);
+
+  useEffect(() => {
+    const handleNativeBack = (e) => {
+      e.preventDefault();
+      handleClose();
+    };
+    window.addEventListener("envantra:native-back", handleNativeBack);
+    return () => {
+      window.removeEventListener("envantra:native-back", handleNativeBack);
+    };
+  }, [handleClose]);
 
   const handleManualSubmit = () => {
     const value = manualCode.trim();
