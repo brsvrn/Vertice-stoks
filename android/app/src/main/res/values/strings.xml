@@ -4,4 +4,5 @@
     <string name="title_activity_main">Envantra</string>
     <string name="package_name">com.envantra.app</string>
     <string name="custom_url_scheme">com.envantra.app</string>
+    <string name="server_client_id">1092256949189-oi71cpqhf9esjkm822uuotmj3omqriri.apps.googleusercontent.com</string>
 </resources>

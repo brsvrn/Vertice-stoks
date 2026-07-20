@@ -1412,60 +1412,39 @@ export default function InventoryView({
    */
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-gray-100">
-
+    <div className="flex flex-col h-full bg-[var(--background)] text-[var(--foreground)]">
       {isInventoryScannerOpen && (
         <QRScannerModal
           title="Sayım İçin Barkod Tara"
-          onClose={() =>
-            setIsInventoryScannerOpen(
-              false
-            )
-          }
-          onScan={
-            handleInventoryScan
-          }
+          onClose={() => setIsInventoryScannerOpen(false)}
+          onScan={handleInventoryScan}
         />
       )}
 
-      <header className="bg-gray-900 border-b border-gray-800">
-
+      <header className="bg-[var(--surface)] border-b border-[var(--border)]">
         <div className="p-5">
-
           <div className="flex items-center gap-4">
-
             <button
               type="button"
               onClick={onBack}
-              className="w-11 h-11 bg-gray-800 rounded-xl flex items-center justify-center"
+              className="w-11 h-11 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center justify-center transition-colors"
             >
-              <ArrowLeft
-                size={22}
-              />
+              <ArrowLeft size={22} />
             </button>
-
             <div>
-
-              <h1 className="text-xl font-black">
-                Stok Sayımı
-              </h1>
-
-              <p className="text-gray-500 text-xs mt-1">
-                Fiziksel stok ile sistem stoğunu karşılaştır
-              </p>
-
+              <h1 className="text-xl font-black">Stok Yönetimi</h1>
+              <p className="text-slate-500 text-xs mt-1">Stokları görüntüle ve sayım yap</p>
             </div>
-
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-5 bg-gray-950 border border-gray-800 rounded-xl p-1">
+          <div className="grid grid-cols-2 gap-2 mt-6 bg-slate-100 dark:bg-slate-900 border border-[var(--border)] rounded-xl p-1">
             <button
               type="button"
               onClick={() => setActiveSection("count")}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-colors ${
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all ${
                 activeSection === "count"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-500"
+                  ? "bg-[var(--surface)] shadow-sm text-blue-600 dark:text-blue-400"
+                  : "text-slate-500 hover:text-[var(--foreground)]"
               }`}
             >
               Sayım Yap
@@ -1473,10 +1452,10 @@ export default function InventoryView({
             <button
               type="button"
               onClick={() => setActiveSection("table")}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                 activeSection === "table"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-500"
+                  ? "bg-[var(--surface)] shadow-sm text-blue-600 dark:text-blue-400"
+                  : "text-slate-500 hover:text-[var(--foreground)]"
               }`}
             >
               <Table2 size={16} />
@@ -1484,167 +1463,92 @@ export default function InventoryView({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-5">
-
+          <div className="grid grid-cols-2 gap-3 mt-4">
             <button
               type="button"
-              onClick={() =>
-                setLocation(
-                  "DEPO"
-                )
-              }
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold ${
-                location ===
-                "DEPO"
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-gray-950 border-gray-800 text-gray-500"
+              onClick={() => setLocation("DEPO")}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-colors ${
+                location === "DEPO"
+                  ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20"
+                  : "bg-slate-50 dark:bg-slate-900 border-[var(--border)] text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <Warehouse
-                size={18}
-              />
-
+              <Warehouse size={18} />
               Depo
             </button>
 
             <button
               type="button"
-              onClick={() =>
-                setLocation(
-                  "BAR"
-                )
-              }
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold ${
-                location ===
-                "BAR"
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-gray-950 border-gray-800 text-gray-500"
+              onClick={() => setLocation("BAR")}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-colors ${
+                location === "BAR"
+                  ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20"
+                  : "bg-slate-50 dark:bg-slate-900 border-[var(--border)] text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <Wine
-                size={18}
-              />
-
+              <Wine size={18} />
               Bar
             </button>
-
           </div>
 
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={saveDraft}
-              className="flex-1 bg-gray-800 border border-gray-700 text-gray-200 font-bold py-3 rounded-xl text-sm"
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border border-[var(--border)] text-[var(--foreground)] hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-bold py-3 rounded-xl text-sm"
             >
               Taslağı Kaydet
             </button>
             {savedDraft && (
               <>
-                <button type="button" onClick={loadDraft} className="flex-1 bg-violet-600 text-white font-bold py-3 rounded-xl text-sm">Taslağa Devam Et</button>
-                <button type="button" onClick={clearDraft} className="px-3 bg-gray-800 text-gray-400 font-bold rounded-xl text-xs">Sil</button>
+                <button type="button" onClick={loadDraft} className="flex-1 bg-violet-600 hover:bg-violet-700 transition-colors text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-violet-500/20">Taslağa Devam Et</button>
+                <button type="button" onClick={clearDraft} className="px-4 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-colors text-slate-400 font-bold rounded-xl text-xs border border-[var(--border)]">Sil</button>
               </>
             )}
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              setIsInventoryScannerOpen(
-                true
-              )
-            }
-            className="w-full mt-4 bg-blue-600 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3"
+            onClick={() => setIsInventoryScannerOpen(true)}
+            className="w-full mt-4 bg-blue-600 hover:bg-blue-700 transition-colors text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_4px_14px_rgba(37,99,235,0.39)]"
           >
-            <Camera
-              size={22}
-            />
-
+            <Camera size={22} />
             QR / Barkod Tara
           </button>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
-
-            <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
-
-              <p className="text-[9px] text-gray-500 uppercase font-bold">
-                Sayılan Ürün
-              </p>
-
-              <p className="text-xl font-black mt-1">
-                {
-                  countedProducts
-                }
-              </p>
-
+            <div className="bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl p-3">
+              <p className="text-[9px] text-slate-500 uppercase font-bold">Sayılan Ürün</p>
+              <p className="text-xl font-black mt-1 text-[var(--foreground)]">{countedProducts}</p>
             </div>
-
-            <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
-
-              <p className="text-[9px] text-gray-500 uppercase font-bold">
-                Fark Bulunan
+            <div className="bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl p-3">
+              <p className="text-[9px] text-slate-500 uppercase font-bold">Fark Bulunan</p>
+              <p className={`text-xl font-black mt-1 ${differenceCount > 0 ? "text-rose-500" : "text-teal-500"}`}>
+                {differenceCount}
               </p>
-
-              <p
-                className={`text-xl font-black mt-1 ${
-                  differenceCount >
-                  0
-                    ? "text-red-400"
-                    : "text-green-400"
-                }`}
-              >
-                {
-                  differenceCount
-                }
-              </p>
-
             </div>
-
           </div>
 
           <div className="relative mt-4">
-
-            <Search
-              size={20}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"
-            />
-
+            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              value={
-                searchQuery
-              }
-              onChange={(
-                event
-              ) =>
-                setSearchQuery(
-                  event.target
-                    .value
-                )
-              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Ürün veya barkod ara..."
-              className="w-full bg-gray-950 border border-gray-800 focus:border-blue-500 text-white pl-11 pr-11 py-3.5 rounded-xl outline-none"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-[var(--border)] focus:border-blue-500 text-[var(--foreground)] pl-11 pr-11 py-3.5 rounded-xl outline-none transition-colors"
             />
-
             {searchQuery && (
               <button
                 type="button"
-                onClick={() =>
-                  setSearchQuery(
-                    ""
-                  )
-                }
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                <X
-                  size={18}
-                />
+                <X size={18} />
               </button>
             )}
-
           </div>
-
         </div>
-
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 pb-32">
@@ -1749,246 +1653,122 @@ export default function InventoryView({
 
         <div className="space-y-3">
 
-          {filteredProducts.map(
-            (product) => {
-              const systemStock =
-                getSystemStock(
-                  product.id
-                );
+          {filteredProducts.map((product) => {
+            const systemStock = getSystemStock(product.id);
+            const hasCount = counts[product.id] !== undefined;
 
-              const hasCount =
-                counts[
-                  product.id
-                ] !== undefined;
+            const countedStock = hasCount ? Number(counts[product.id]) : 0;
+            const difference = hasCount ? countedStock - systemStock : 0;
+            const isCritical = systemStock <= Number(product.minStock || 0);
 
-              const countedStock =
-                hasCount
-                  ? Number(
-                      counts[
-                        product.id
-                      ]
-                    )
-                  : 0;
+            // Determine status color bar
+            const statusColor = systemStock === 0 ? "bg-red-500" : isCritical ? "bg-orange-500" : "bg-blue-500";
 
-              const difference =
-                hasCount
-                  ? countedStock -
-                    systemStock
-                  : 0;
+            return (
+              <div
+                key={product.id}
+                className={`relative overflow-hidden bg-[var(--surface)] border rounded-2xl shadow-sm transition-all ${
+                  hasCount && difference !== 0
+                    ? "border-red-500"
+                    : hasCount
+                    ? "border-teal-500"
+                    : "border-[var(--border)]"
+                }`}
+              >
+                {/* Bottom Status Bar */}
+                <div className={`absolute bottom-0 left-0 right-0 h-1.5 ${statusColor}`} />
 
-              return (
-                <div
-                  key={
-                    product.id
-                  }
-                  className={`bg-gray-900 border rounded-2xl p-4 ${
-                    hasCount &&
-                    difference !==
-                      0
-                      ? "border-red-500/40"
-                      : hasCount
-                      ? "border-green-500/30"
-                      : "border-gray-800"
-                  }`}
-                >
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="w-11 h-11 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center shrink-0">
-
-                      <Package
-                        size={22}
-                      />
-
+                <div className="p-4 pb-5">
+                  <div className="flex items-start gap-4">
+                    {/* Placeholder for Product Image */}
+                    <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center shrink-0">
+                      <Package size={24} className="text-slate-400" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-
-                      <h3 className="font-bold truncate">
-                        {
-                          product.name
-                        }
-                      </h3>
-
-                      <p className="text-gray-600 text-[10px] font-mono mt-1 truncate">
-                        {product.qrNo ||
-                          product.barcode ||
-                          product.barcodeNo ||
-                          "Barkod yok"}
-                      </p>
-
+                      <h3 className="font-bold text-[var(--foreground)] truncate">{product.name}</h3>
+                      <p className="text-slate-500 text-xs mt-1 truncate">SKU: {product.qrNo || product.barcode || "N/A"}</p>
                     </div>
 
                     <div className="text-right">
-
-                      <p className="text-[9px] text-gray-600 uppercase font-bold">
-                        Sistem
-                      </p>
-
-                      <p className="text-xl font-black text-blue-400">
-                        {
-                          systemStock
-                        }
-                      </p>
-
+                      <p className="text-[10px] text-slate-500 uppercase font-bold">Mevcut</p>
+                      <p className="text-xl font-black text-[var(--foreground)]">{systemStock}</p>
                     </div>
-
                   </div>
 
-                  <div className="flex items-center gap-2 mt-4">
-
+                  <div className="flex items-center gap-3 mt-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        decreaseCount(
-                          product.id
-                        )
-                      }
-                      className="w-12 h-12 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-center"
+                      onClick={() => decreaseCount(product.id)}
+                      className="w-10 h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center justify-center transition-colors"
                     >
-                      <Minus
-                        size={20}
-                      />
+                      <Minus size={18} />
                     </button>
-
                     <input
                       type="number"
                       min="0"
-                      value={
-                        hasCount
-                          ? countedStock
-                          : ""
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateCount(
-                          product.id,
-                          event.target
-                            .value
-                        )
-                      }
-                      placeholder="Say"
-                      className="flex-1 min-w-0 h-12 bg-gray-950 border border-gray-800 focus:border-blue-500 rounded-xl text-center text-white text-xl font-black outline-none"
+                      value={hasCount ? countedStock : ""}
+                      onChange={(e) => updateCount(product.id, e.target.value)}
+                      placeholder="Sayım"
+                      className="flex-1 h-10 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] focus:border-blue-500 rounded-xl text-center text-[var(--foreground)] font-bold outline-none"
                     />
-
                     <button
                       type="button"
-                      onClick={() =>
-                        increaseCount(
-                          product.id
-                        )
-                      }
-                      className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center"
+                      onClick={() => increaseCount(product.id)}
+                      className="w-10 h-10 bg-teal-500 hover:bg-teal-600 text-white rounded-xl flex items-center justify-center transition-colors shadow-md shadow-teal-500/20"
                     >
-                      <Plus
-                        size={20}
-                      />
+                      <Plus size={18} />
                     </button>
-
                   </div>
 
                   {hasCount && (
-                    <div
-                      className={`mt-3 px-3 py-2 rounded-lg flex items-center justify-between ${
-                        difference ===
-                        0
-                          ? "bg-green-500/10 text-green-400"
-                          : "bg-red-500/10 text-red-400"
-                      }`}
-                    >
-
-                      <div className="flex items-center gap-2 text-xs font-bold">
-
-                        {difference ===
-                        0 ? (
-                          <CheckCircle2
-                            size={16}
-                          />
-                        ) : (
-                          <ClipboardCheck
-                            size={16}
-                          />
-                        )}
-
-                        {difference ===
-                        0
-                          ? "Stok eşleşiyor"
-                          : "Sayım farkı"}
-
+                    <div className={`mt-3 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-bold ${
+                      difference === 0 ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400" : "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {difference === 0 ? <CheckCircle2 size={16} /> : <ClipboardCheck size={16} />}
+                        {difference === 0 ? "Stok eşleşiyor" : "Sayım farkı"}
                       </div>
-
                       <span className="font-black">
-
-                        {difference >
-                        0
-                          ? "+"
-                          : ""}
-
-                        {
-                          difference
-                        }
-
+                        {difference > 0 ? "+" : ""}{difference}
                       </span>
-
                     </div>
                   )}
-
                 </div>
-              );
-            }
-          )}
+              </div>
+            );
+          })}
 
         </div>
 
-        {filteredProducts.length ===
-          0 && (
-          <div className="py-20 text-center">
-
-            <Package
-              size={40}
-              className="text-gray-700 mx-auto"
-            />
-
-            <p className="text-gray-500 mt-4">
-              Ürün bulunamadı.
+        {filteredProducts.length === 0 && (
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+              <Package size={32} className="text-slate-400" />
+            </div>
+            <h3 className="text-lg font-black text-[var(--foreground)]">Ürün Bulunamadı</h3>
+            <p className="text-slate-500 mt-2 max-w-[250px]">
+              Arama kriterlerinize uyan bir ürün bulunamadı. Lütfen farklı bir arama yapın.
             </p>
-
           </div>
         )}
-
           </>
         )}
-
       </main>
 
       {activeSection === "count" && (
-      <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4">
-
-        <button
-          type="button"
-          disabled={
-            isSaving ||
-            countedProducts ===
-              0
-          }
-          onClick={
-            handleCompleteInventory
-          }
-          className="w-full bg-green-600 disabled:bg-gray-800 disabled:text-gray-600 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2"
-        >
-          <ClipboardCheck
-            size={21}
-          />
-
-          {isSaving
-            ? "Sayım Kaydediliyor..."
-            : "Sayımı Tamamla"}
-        </button>
-
-      </div>
+        <div className="absolute bottom-[76px] left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.2)] z-10">
+          <button
+            type="button"
+            disabled={isSaving || countedProducts === 0}
+            onClick={handleCompleteInventory}
+            className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:shadow-none transition-colors text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-teal-500/30"
+          >
+            <ClipboardCheck size={21} />
+            {isSaving ? "Sayım Kaydediliyor..." : "Sayımı Tamamla"}
+          </button>
+        </div>
       )}
-
     </div>
   );
-          }
+}

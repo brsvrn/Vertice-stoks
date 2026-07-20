@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { isNativeApp } from "../lib/nativeRuntime";
+import { X, Flashlight, FlashlightOff, Keyboard, Search, QrCode } from "lucide-react";
 
 const NATIVE_FORMATS = [
   BarcodeFormat.QrCode,
@@ -247,21 +248,29 @@ export default function QRScannerModal({
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-black text-white">
-      <header className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-5 py-4">
+      {/* Floating Header */}
+      <header className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between px-6 py-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
         <div>
-          <h1 className="text-xl font-black">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">Envantra</p>
+          <h1 className="text-2xl font-black text-white drop-shadow-md">{title}</h1>
+          <p className="mt-1 text-sm font-medium text-white/80 drop-shadow-sm">Kamera ile tarayın veya manuel girin</p>
         </div>
-        <button type="button" onClick={handleClose} aria-label="Tarayıcıyı kapat" className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-800 text-2xl">×</button>
+        <button 
+          type="button" 
+          onClick={handleClose} 
+          aria-label="Tarayıcıyı kapat" 
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white transition-transform active:scale-90"
+        >
+          <X size={20} />
+        </button>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 relative flex flex-col justify-end">
         {!manualMode ? (
           <>
-            <div className="scanner-viewport relative min-h-[320px] bg-black">
-              {!nativeMode && <video ref={videoRef} className="h-full min-h-[320px] w-full object-cover" autoPlay muted playsInline />}
+            <div className="absolute inset-0 z-0">
+              {!nativeMode && <video ref={videoRef} className="h-full w-full object-cover" autoPlay muted playsInline />}
               {!nativeMode && status !== "error" && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6">
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
                   <div className="scanner-focus-window" aria-hidden="true">
                     <i className="scanner-corner scanner-corner--top-left" />
                     <i className="scanner-corner scanner-corner--top-right" />
@@ -273,38 +282,90 @@ export default function QRScannerModal({
               )}
             </div>
 
-            <div className="space-y-4 px-6 py-6 text-center">
-              {torchAvailable && status === "ready" && (
-                <button type="button" onClick={toggleTorch} className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-3 font-bold text-gray-300">
-                  {torchEnabled ? "Feneri kapat" : "Feneri aç"}
-                </button>
-              )}
-              {!nativeMode && cameras.length > 1 && (
-                <label className="block text-left text-sm text-gray-400">
-                  Kamera
-                  <select value={selectedCameraId} onChange={(event) => void startScanner(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white">
-                    {cameras.map((camera, index) => <option key={camera.deviceId} value={camera.deviceId}>{getCameraLabel(camera, index)}</option>)}
-                  </select>
-                </label>
-              )}
+            {/* Bottom Actions Floating Panel */}
+            <div className="relative z-20 w-full px-6 py-8 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col gap-4 pb-12">
               {status === "error" && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-left">
-                  <p className="font-bold text-red-300">Kamera açılamadı</p>
-                  <p className="mt-2 text-sm text-red-200">{error}</p>
-                  <button type="button" onClick={() => void startScanner(selectedCameraId)} className="mt-4 w-full rounded-xl bg-blue-600 py-3 font-bold">Tekrar dene</button>
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/20 backdrop-blur-sm p-4 text-left mb-2">
+                  <p className="font-bold text-rose-300">Kamera açılamadı</p>
+                  <p className="mt-1 text-sm text-rose-200/80">{error}</p>
+                  <button type="button" onClick={() => void startScanner(selectedCameraId)} className="mt-4 w-full rounded-xl bg-rose-600 hover:bg-rose-700 py-3 font-bold transition-colors">Tekrar dene</button>
                 </div>
               )}
-              <button type="button" onClick={() => { stopScanner(); setManualMode(true); setError(""); }} className="w-full rounded-2xl border border-gray-800 bg-gray-900 py-4 font-bold text-gray-300">Kodu manuel gir</button>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => { stopScanner(); setManualMode(true); setError(""); }} 
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md py-4 font-bold text-white transition-colors border border-white/10"
+                >
+                  <Keyboard size={20} />
+                  Manuel Giriş
+                </button>
+                
+                {torchAvailable && status === "ready" && (
+                  <button 
+                    type="button" 
+                    onClick={toggleTorch} 
+                    className={`flex h-14 w-14 items-center justify-center rounded-2xl backdrop-blur-md transition-colors border border-white/10 ${torchEnabled ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                  >
+                    {torchEnabled ? <FlashlightOff size={22} /> : <Flashlight size={22} />}
+                  </button>
+                )}
+              </div>
+
+              {!nativeMode && cameras.length > 1 && (
+                <div className="relative">
+                  <select 
+                    value={selectedCameraId} 
+                    onChange={(event) => void startScanner(event.target.value)} 
+                    className="w-full appearance-none rounded-xl border border-white/10 bg-black/50 backdrop-blur-md px-4 py-3 pr-10 text-sm text-white outline-none focus:border-white/30"
+                  >
+                    {cameras.map((camera, index) => <option key={camera.deviceId} value={camera.deviceId}>{getCameraLabel(camera, index)}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </>
         ) : (
-          <div className="p-6">
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-              <h2 className="text-xl font-black">Kodu manuel gir</h2>
-              <input type="text" inputMode="text" value={manualCode} onChange={(event) => setManualCode(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleManualSubmit()} placeholder="Barkod veya QR bağlantısı" className="mt-5 w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-4 text-white" autoFocus />
-              {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-              <button type="button" onClick={handleManualSubmit} className="mt-5 w-full rounded-xl bg-blue-600 py-4 font-black">Ürünü ara</button>
-              <button type="button" onClick={() => { setManualMode(false); setError(""); void startScanner(selectedCameraId); }} className="mt-3 w-full rounded-xl bg-gray-800 py-4 font-bold text-gray-300">Kameraya dön</button>
+          <div className="relative z-20 flex-1 flex flex-col bg-black pt-32 px-6">
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl">
+              <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mb-5 border border-blue-500/20">
+                <QrCode size={24} />
+              </div>
+              <h2 className="text-2xl font-black text-white">Kodu manuel gir</h2>
+              <p className="mt-2 text-sm text-white/60 mb-6">Kamera çalışmıyorsa barkod üzerindeki numarayı buraya yazın.</p>
+              
+              <div className="relative">
+                <input 
+                  type="text" 
+                  inputMode="text" 
+                  value={manualCode} 
+                  onChange={(event) => setManualCode(event.target.value)} 
+                  onKeyDown={(event) => event.key === "Enter" && handleManualSubmit()} 
+                  placeholder="Barkod numarası" 
+                  className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white text-lg font-mono outline-none focus:border-blue-500 transition-colors placeholder:font-sans" 
+                  autoFocus 
+                />
+              </div>
+              
+              {error && <p className="mt-3 text-sm text-rose-400 flex items-center gap-1.5 font-medium"><X size={14} />{error}</p>}
+              
+              <button 
+                type="button" 
+                onClick={handleManualSubmit} 
+                className="mt-6 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 transition-colors py-4 font-black flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(37,99,235,0.39)]"
+              >
+                <Search size={20} />
+                Ürünü Bul
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => { setManualMode(false); setError(""); void startScanner(selectedCameraId); }} 
+                className="mt-3 w-full rounded-2xl bg-transparent hover:bg-white/5 py-4 font-bold text-white/70 transition-colors"
+              >
+                Kameraya dön
+              </button>
             </div>
           </div>
         )}

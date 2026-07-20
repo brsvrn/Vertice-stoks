@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Home, Camera, Package, Bell, User } from "lucide-react";
 
 import {
   onAuthStateChanged,
@@ -1615,7 +1616,68 @@ export default function StockApp() {
       {currentView === "company_access" && (
         <CompanyAccessView company={company} user={user} onBack={() => setCurrentView("profile")} showToast={showToast} />
       )}
+      
+      {/* BOTTOM NAVIGATION */}
+      <div className="absolute bottom-[76px] left-1/2 z-20 -translate-x-1/2">
+        <button 
+          type="button" 
+          onClick={() => setIsScannerOpen(true)} 
+          className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[var(--background)] bg-blue-600 dark:bg-blue-500 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] active:scale-95 transition-transform" 
+          aria-label="QR veya barkod tara"
+        >
+          <Camera size={26} />
+        </button>
+      </div>
+      
+      <nav className="absolute bottom-0 left-0 right-0 z-10 bg-[var(--surface)] border-t border-[var(--border)] px-4 pb-4 pt-3 bottom-nav-shadow">
+        <div className="flex items-center justify-between">
+          <NavButton 
+            icon={<Home size={22} />} 
+            label="Dashboard" 
+            active={currentView === "dashboard"} 
+            onClick={() => setCurrentView("dashboard")} 
+          />
+          <NavButton 
+            icon={<Package size={22} />} 
+            label="Stok" 
+            active={currentView === "inventory" || currentView === "product_detail"} 
+            onClick={() => setCurrentView("inventory")} 
+          />
+          <div className="w-16" /> {/* FAB Placeholder */}
+          <NavButton 
+            icon={<Bell size={22} />} 
+            label="Uyarılar" 
+            active={currentView === "notifications"} 
+            onClick={() => setCurrentView("notifications")} 
+            badge={activeNotifications?.length || 0}
+          />
+          <NavButton 
+            icon={<User size={22} />} 
+            label="Profil" 
+            active={currentView === "profile"} 
+            onClick={() => setCurrentView("profile")} 
+          />
+        </div>
+      </nav>
     </div>
+  );
+}
+
+function NavButton({ icon, label, active = false, onClick, badge }) {
+  return (
+    <button 
+      type="button" 
+      onClick={onClick} 
+      className={`relative flex min-w-[60px] flex-col items-center gap-1.5 px-1 py-1 transition-colors ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-400 hover:text-slate-500 dark:hover:text-slate-300"}`}
+    >
+      {icon}
+      <span className="text-[10px] font-bold">{label}</span>
+      {badge > 0 && (
+        <span className="absolute top-0 right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </button>
   );
 }
 
