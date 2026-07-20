@@ -641,7 +641,7 @@ export default function StockApp() {
           "@capacitor-firebase/authentication"
         );
         const result = await FirebaseAuthentication.signInWithGoogle({
-          skipNativeAuth: true,
+          skipNativeAuth: false,
           useCredentialManager: true,
         });
         const idToken = result?.credential?.idToken;
