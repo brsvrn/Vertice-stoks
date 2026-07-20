@@ -3,9 +3,9 @@ import PWARegister from "../components/PWARegister";
 import NetworkStatus from "../components/NetworkStatus";
 
 export const metadata = {
-  title: "Vertice Stok",
+  title: "Stockera",
   description:
-    "QR destekli stok takip ve envanter yönetim sistemi",
+    "Stockera - QR destekli stok takip ve envanter yönetim sistemi",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -25,7 +25,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Vertice Stok",
+    title: "Stockera",
   },
 };
 

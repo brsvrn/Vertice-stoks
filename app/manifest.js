@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "Vertice Stok",
-    short_name: "Vertice Stok",
+    name: "Stockera",
+    short_name: "Stockera",
 
     description:
       "QR ve barkod destekli stok, sayım ve envanter yönetim sistemi.",

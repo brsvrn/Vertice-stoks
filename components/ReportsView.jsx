@@ -25,7 +25,7 @@ export default function ReportsView({ products = [], batches = [], transactions 
   const maximumProductMovement = Math.max(...summary.topProducts.map((item) => item.quantity), 1);
   const exportReport = () => {
     const lines = [
-      ["Vertice Stok Raporu", new Date().toLocaleString("tr-TR")],
+      ["Stockera Raporu", new Date().toLocaleString("tr-TR")],
       ["Toplam stok", summary.stocks],
       ["Son 30 gün stok girişi", summary.stockIn],
       ["Son 30 gün stok çıkışı", summary.stockOut],

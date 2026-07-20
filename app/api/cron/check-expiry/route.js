@@ -844,7 +844,7 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error(
-      "Vertice Stok Cron hatası:",
+      "Stockera Cron hatası:",
       error
     );
 

@@ -1,6 +1,6 @@
 {
-  "name": "Vertice Stok",
-  "short_name": "Vertice Stok",
+  "name": "Stockera",
+  "short_name": "Stockera",
   "description": "QR destekli stok takip ve envanter yönetim sistemi",
   "start_url": "/",
   "scope": "/",
