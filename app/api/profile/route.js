@@ -22,7 +22,19 @@ export async function POST(request) {
 
     const users = getCollection(getAdminDb(), "users");
     const existing = await users.doc(decodedToken.uid).get();
-    if (existing.exists) return NextResponse.json({ user: existing.data() });
+    if (existing.exists) {
+      const existingUser = existing.data();
+      if (requestedRole === "admin" && existingUser.role !== "admin") {
+        const configuredPin = process.env.ADMIN_SETUP_PIN;
+        if (!configuredPin || adminPin !== configuredPin) {
+          return NextResponse.json({ error: "Yönetici PIN kodu geçersiz." }, { status: 403 });
+        }
+        const upgradedUser = { ...existingUser, name, role: "admin", updatedAt: new Date().toISOString() };
+        await users.doc(decodedToken.uid).set(upgradedUser, { merge: true });
+        return NextResponse.json({ user: upgradedUser });
+      }
+      return NextResponse.json({ user: existingUser });
+    }
 
     if (requestedRole === "admin") {
       const configuredPin = process.env.ADMIN_SETUP_PIN;
