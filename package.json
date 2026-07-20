@@ -1,1 +1,40 @@
-{"name":"vertice-stok","version":"1.0.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"@zxing/browser":"^0.1.5","firebase":"^11.10.0","firebase-admin":"^13.4.0","jspdf":"^3.0.2","lucide-react":"^0.468.0","next":"^15.5.20","qrcode":"^1.5.4","react":"^19.1.0","react-dom":"^19.1.0"},"devDependencies":{"@tailwindcss/postcss":"^4.1.0","tailwindcss":"^4.1.0"}}
+{
+  "name": "envantra",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
+    "android:debug": "cap sync android && cd android && gradlew.bat assembleDebug",
+    "android:release": "cap sync android && cd android && gradlew.bat bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
+    "@capacitor-mlkit/barcode-scanning": "^8.1.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
+    "@zxing/browser": "^0.1.5",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.4.0",
+    "jspdf": "^3.0.2",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.20",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@tailwindcss/postcss": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

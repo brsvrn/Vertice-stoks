@@ -8,6 +8,13 @@ import {
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
+import {
+  checkNativeCameraPermission,
+  checkNativeNotificationPermission,
+  isNativeApp,
+  requestNativeCameraPermission,
+  requestNativeNotificationPermission,
+} from "../lib/nativeRuntime";
 
 export default function PermissionsSetupView({
   onComplete,
@@ -28,6 +35,23 @@ export default function PermissionsSetupView({
    */
   useEffect(() => {
     if (typeof window === "undefined") {
+      return;
+    }
+
+    if (isNativeApp()) {
+      Promise.all([
+        checkNativeNotificationPermission(),
+        checkNativeCameraPermission(),
+      ])
+        .then(([notification, camera]) => {
+          setNotificationStatus(notification);
+          setCameraStatus(camera);
+        })
+        .catch((error) => {
+          console.error("Android izinleri kontrol edilemedi:", error);
+          setNotificationStatus("prompt");
+          setCameraStatus("prompt");
+        });
       return;
     }
 
@@ -66,6 +90,16 @@ export default function PermissionsSetupView({
    */
   const requestNotificationPermission =
     async () => {
+      if (isNativeApp()) {
+        try {
+          setNotificationStatus(await requestNativeNotificationPermission());
+        } catch (error) {
+          console.error("Android bildirim izin hatası:", error);
+          setNotificationStatus("denied");
+        }
+        return;
+      }
+
       if (
         typeof window === "undefined" ||
         !("Notification" in window)
@@ -103,6 +137,16 @@ export default function PermissionsSetupView({
    */
   const requestCameraPermission =
     async () => {
+      if (isNativeApp()) {
+        try {
+          setCameraStatus(await requestNativeCameraPermission());
+        } catch (error) {
+          console.error("Android kamera izin hatası:", error);
+          setCameraStatus("denied");
+        }
+        return;
+      }
+
       if (
         !navigator.mediaDevices ||
         !navigator.mediaDevices.getUserMedia

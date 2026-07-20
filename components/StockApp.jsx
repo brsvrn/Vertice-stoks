@@ -24,6 +24,10 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../lib/firebase";
+import {
+  checkNativeNotificationPermission,
+  isNativeApp,
+} from "../lib/nativeRuntime";
 
 import {
   getFCMToken,
@@ -266,6 +270,13 @@ export default function StockApp() {
   */
 
   useEffect(() => {
+    if (isNativeApp()) {
+      void checkNativeNotificationPermission()
+        .then(setNotificationStatus)
+        .catch(() => setNotificationStatus("unknown"));
+      return;
+    }
+
     if (typeof window !== "undefined" && "Notification" in window) {
       setNotificationStatus(Notification.permission);
     } else {
@@ -514,8 +525,9 @@ export default function StockApp() {
 
       if (
         typeof window === "undefined" ||
-        !("Notification" in window) ||
-        (!interactive && Notification.permission !== "granted")
+        (!isNativeApp() &&
+          (!("Notification" in window) ||
+            (!interactive && Notification.permission !== "granted")))
       ) {
         return false;
       }
@@ -575,8 +587,8 @@ export default function StockApp() {
       !dbUser ||
       !company ||
       typeof window === "undefined" ||
-      !("Notification" in window) ||
-      Notification.permission !== "granted"
+      (!isNativeApp() &&
+        (!("Notification" in window) || Notification.permission !== "granted"))
     ) {
       return;
     }
@@ -623,6 +635,25 @@ export default function StockApp() {
     try {
       setGoogleSignInLoading(true);
       setGoogleSignInError("");
+
+      if (isNativeApp()) {
+        const { FirebaseAuthentication } = await import(
+          "@capacitor-firebase/authentication"
+        );
+        const result = await FirebaseAuthentication.signInWithGoogle({
+          skipNativeAuth: false,
+          useCredentialManager: true,
+        });
+        const idToken = result?.credential?.idToken;
+        if (!idToken) throw new Error("NATIVE_GOOGLE_ID_TOKEN_MISSING");
+        const credential = GoogleAuthProvider.credential(
+          idToken,
+          result?.credential?.accessToken || undefined
+        );
+        await signInWithCredential(auth, credential);
+        return;
+      }
+
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(auth, provider);
@@ -639,6 +670,12 @@ export default function StockApp() {
           console.error("Mevcut Google hesabına geçiş hatası:", migrationError);
         }
       }
+      if (error?.message === "NATIVE_GOOGLE_ID_TOKEN_MISSING") {
+        setGoogleSignInError("Android Google oturumu doğrulanamadı. Lütfen tekrar deneyin.");
+        setGoogleSignInLoading(false);
+        return;
+      }
+
       const errorMessages = {
         "auth/operation-not-allowed": "Google ile giriş Firebase Authentication ayarlarında etkin değil.",
         "auth/unauthorized-domain": "Bu Vercel alan adı Firebase Authentication için yetkilendirilmemiş.",
@@ -1288,6 +1325,29 @@ export default function StockApp() {
     setCurrentView("dashboard");
   };
 
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+
+    const handleNativeBack = (event) => {
+      if (isScannerOpen || isAddScannerOpen) {
+        event.preventDefault();
+        setIsScannerOpen(false);
+        setIsAddScannerOpen(false);
+        return;
+      }
+
+      if (currentView !== "dashboard") {
+        event.preventDefault();
+        setSelectedProduct(null);
+        setScannedBarcodeForAdd("");
+        setCurrentView("dashboard");
+      }
+    };
+
+    window.addEventListener("envantra:native-back", handleNativeBack);
+    return () => window.removeEventListener("envantra:native-back", handleNativeBack);
+  }, [currentView, isAddScannerOpen, isScannerOpen]);
+
   /*
 
   =========================================
@@ -1299,6 +1359,12 @@ export default function StockApp() {
 
   const handleLogout = async () => {
     try {
+      if (isNativeApp()) {
+        const { FirebaseAuthentication } = await import(
+          "@capacitor-firebase/authentication"
+        );
+        await FirebaseAuthentication.signOut().catch(() => undefined);
+      }
       await signOut(auth);
       setActiveCompanyId("");
       window.localStorage.removeItem("envantra_active_company_id");
