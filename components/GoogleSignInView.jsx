@@ -12,7 +12,7 @@ export default function GoogleSignInView({ loading, onSignIn, error }) {
         {error && <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
         <button type="button" onClick={onSignIn} disabled={loading} className="mt-6 w-full rounded-2xl bg-white py-4 font-bold text-gray-900 flex items-center justify-center gap-3 disabled:opacity-60">
           <Chrome size={21} />
-          {loading ? "Google yönlendirmesi hazırlanıyor..." : "Google ile devam et"}
+          {loading ? "Google hesabı açılıyor..." : "Google ile devam et"}
         </button>
         <p className="mt-5 text-xs text-gray-600">Yetkiniz, girişten sonra hesabınızla ilişkilendirilir.</p>
       </section>

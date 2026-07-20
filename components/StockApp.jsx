@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   onAuthStateChanged,
-  getRedirectResult,
   GoogleAuthProvider,
-  linkWithRedirect,
-  signInWithRedirect,
+  linkWithPopup,
+  signInWithPopup,
   signInAnonymously,
   signOut,
 } from "firebase/auth";
@@ -226,7 +225,6 @@ export default function StockApp() {
 
     const startAuthentication = async () => {
       try {
-        await getRedirectResult(auth);
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
@@ -610,9 +608,9 @@ export default function StockApp() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       if (auth.currentUser?.isAnonymous) {
-        await linkWithRedirect(auth.currentUser, provider);
+        await linkWithPopup(auth.currentUser, provider);
       } else {
-        await signInWithRedirect(auth, provider);
+        await signInWithPopup(auth, provider);
       }
     } catch (error) {
       console.error("Google giriş hatası:", error);
