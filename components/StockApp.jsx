@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Home, Camera, Package, Bell, User } from "lucide-react";
+import {
+  Bell,
+  Home,
+  Package,
+  Scan,
+  MoreHorizontal,
+  User,
+  Camera,
+} from "lucide-react";
 
 import {
   onAuthStateChanged,
@@ -45,11 +53,14 @@ import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 import ReportsView from "./ReportsView";
 import GoogleSignInView from "./GoogleSignInView";
-import PermissionsSetupView from "./PermissionsSetupView";
+
 import PrintCenterView from "./PrintCenterView";
 import CompanyOnboardingView from "./CompanyOnboardingView";
 import CompanyAccessView from "./CompanyAccessView";
 import AppLoadingScreen from "./AppLoadingScreen";
+import Toast from "./Toast";
+import MoreMenuView from "./MoreMenuView";
+import SKTCalendarView from "./SKTCalendarView";
 import { parseProductReference } from "../lib/qr";
 import { getActiveCompanyId, setActiveCompanyId } from "../lib/tenantRuntime";
 
@@ -159,40 +170,34 @@ export default function StockApp() {
 
   const [notificationLoading, setNotificationLoading] = useState(false);
 
-  const [readNotificationIds, setReadNotificationIds] = useState([]);
+  const [readNotificationIds, setReadNotificationIds] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("envantra_read_notifications");
+        return stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("envantra_read_notifications", JSON.stringify(readNotificationIds));
+    }
+  }, [readNotificationIds]);
 
   const [inventoryActionLoading, setInventoryActionLoading] = useState(false);
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
   const [googleSignInError, setGoogleSignInError] = useState("");
   const [googleProfileReviewRequired, setGoogleProfileReviewRequired] = useState(false);
 
-  const [
-    permissionsSetupCompleted,
-    setPermissionsSetupCompleted,
-  ] = useState(null);
+
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     window.setTimeout(() => setToast(null), 4000);
-  }, []);
-
-  /*
-
-  =========================================
-
-  İLK KURULUM İZİN DURUMU
-
-  =========================================
-  */
-
-  useEffect(() => {
-    try {
-      const completed = localStorage.getItem("vertice_permissions_setup_completed");
-      setPermissionsSetupCompleted(completed === "true");
-    } catch (error) {
-      console.error("İzin kurulum durumu okunamadı:", error);
-      setPermissionsSetupCompleted(false);
-    }
   }, []);
 
   const activateCompany = useCallback((selectedCompany) => {
@@ -583,18 +588,25 @@ export default function StockApp() {
   };
 
   useEffect(() => {
-    if (
-      !user ||
-      !dbUser ||
-      !company ||
-      typeof window === "undefined" ||
-      (!isNativeApp() &&
-        (!("Notification" in window) || Notification.permission !== "granted"))
-    ) {
-      return;
-    }
+    if (!user || !dbUser || !company || typeof window === "undefined") return;
 
-    registerCurrentDeviceForPush();
+    const setupPush = async () => {
+      try {
+        if (isNativeApp()) {
+          const { checkNativeNotificationPermission } = await import("../lib/nativeRuntime");
+          const status = await checkNativeNotificationPermission();
+          if (status === "granted") {
+            registerCurrentDeviceForPush();
+          }
+        } else if ("Notification" in window && Notification.permission === "granted") {
+          registerCurrentDeviceForPush();
+        }
+      } catch (e) {
+        console.error("Push setup error:", e);
+      }
+    };
+    
+    void setupPush();
   }, [company, dbUser, registerCurrentDeviceForPush, user]);
 
   /*
@@ -1384,28 +1396,7 @@ export default function StockApp() {
     }
   };
 
-  /*
 
-  =========================================
-
-  İLK AÇILIŞ İZİN EKRANI
-
-  =========================================
-  */
-
-  if (permissionsSetupCompleted === null) {
-    return <AppLoadingScreen message="Uygulama hazırlanıyor..." />;
-  }
-
-  if (!permissionsSetupCompleted) {
-    return (
-      <PermissionsSetupView
-        onComplete={() => {
-          setPermissionsSetupCompleted(true);
-        }}
-      />
-    );
-  }
 
   /*
 
@@ -1513,6 +1504,7 @@ export default function StockApp() {
           onOpenNotifications={() => setCurrentView("notifications")}
           onOpenProfile={() => setCurrentView("profile")}
           onOpenPrintCenter={handleOpenPrintCenter}
+          onOpenSKTCalendar={() => setCurrentView("skt_calendar")}
         />
       )}
       
@@ -1616,19 +1608,28 @@ export default function StockApp() {
       {currentView === "company_access" && (
         <CompanyAccessView company={company} user={user} onBack={() => setCurrentView("profile")} showToast={showToast} />
       )}
+
+      {currentView === "more" && (
+        <MoreMenuView
+          dbUser={dbUser}
+          onOpenProfile={() => setCurrentView("profile")}
+          onOpenPrintCenter={handleOpenPrintCenter}
+          onOpenReports={() => setCurrentView("reports")}
+          onOpenHistory={() => setCurrentView("inventory_history")}
+          onOpenSKTCalendar={() => setCurrentView("skt_calendar")}
+          onBack={handleBackToDashboard}
+        />
+      )}
+
+      {currentView === "skt_calendar" && (
+        <SKTCalendarView
+          products={products}
+          batches={batches}
+          onBack={handleBackToDashboard}
+        />
+      )}
       
       {/* BOTTOM NAVIGATION */}
-      <div className="absolute bottom-[76px] left-1/2 z-20 -translate-x-1/2">
-        <button 
-          type="button" 
-          onClick={() => setIsScannerOpen(true)} 
-          className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[var(--background)] bg-blue-600 dark:bg-blue-500 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] active:scale-95 transition-transform" 
-          aria-label="QR veya barkod tara"
-        >
-          <Camera size={26} />
-        </button>
-      </div>
-      
       <nav className="absolute bottom-0 left-0 right-0 z-10 bg-[var(--surface)] border-t border-[var(--border)] px-4 pb-4 pt-3 bottom-nav-shadow">
         <div className="flex items-center justify-between">
           <NavButton 
@@ -1643,7 +1644,12 @@ export default function StockApp() {
             active={currentView === "inventory" || currentView === "product_detail"} 
             onClick={() => setCurrentView("inventory")} 
           />
-          <div className="w-16" /> {/* FAB Placeholder */}
+          <NavButton 
+            icon={<Scan size={22} />} 
+            label="Tara" 
+            active={isScannerOpen} 
+            onClick={() => setIsScannerOpen(true)} 
+          />
           <NavButton 
             icon={<Bell size={22} />} 
             label="Uyarılar" 
@@ -1652,10 +1658,10 @@ export default function StockApp() {
             badge={activeNotifications?.length || 0}
           />
           <NavButton 
-            icon={<User size={22} />} 
-            label="Profil" 
-            active={currentView === "profile" || currentView === "company_access"} 
-            onClick={() => setCurrentView("profile")} 
+            icon={<MoreHorizontal size={22} />} 
+            label="Daha Fazla" 
+            active={currentView === "more"} 
+            onClick={() => setCurrentView("more")} 
           />
         </div>
       </nav>

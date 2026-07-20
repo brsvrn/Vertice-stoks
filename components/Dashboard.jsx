@@ -21,6 +21,7 @@ import {
   Wine,
   X,
   Menu,
+  CalendarDays,
 } from "lucide-react";
 
 function asDate(value) {
@@ -61,6 +62,7 @@ export default function Dashboard({
   onOpenNotifications,
   onOpenProfile,
   onOpenPrintCenter,
+  onOpenSKTCalendar,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -134,27 +136,32 @@ export default function Dashboard({
 
         {/* Quick Access */}
         <section className="mt-8">
-          <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">Quick Access</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">Hızlı Erişim</h2>
+          <div className="grid grid-cols-3 gap-3">
             <QuickAccessCard 
               icon={<Package size={24} className="text-teal-600 dark:text-teal-400" />} 
-              label="Stock Management" 
+              label="Stok Yönetimi" 
               onClick={onOpenInventory} 
             />
             <QuickAccessCard 
               icon={<Camera size={24} className="text-blue-600 dark:text-blue-400" />} 
-              label="Barcode & QR" 
+              label="Barkod & QR" 
               onClick={onOpenScanner} 
             />
             <QuickAccessCard 
+              icon={<CalendarDays size={24} className="text-indigo-600 dark:text-indigo-400" />} 
+              label="SKT Takibi" 
+              onClick={onOpenSKTCalendar} 
+            />
+            <QuickAccessCard 
               icon={<Bell size={24} className="text-orange-500" />} 
-              label="Smart Notifications" 
+              label="Bildirimler" 
               onClick={onOpenNotifications} 
               badge={notifications.length}
             />
             <QuickAccessCard 
-              icon={<BarChart3 size={24} className="text-indigo-500" />} 
-              label="Reports" 
+              icon={<BarChart3 size={24} className="text-purple-500" />} 
+              label="Raporlar" 
               onClick={onOpenReports} 
             />
           </div>
@@ -184,14 +191,14 @@ function QuickAccessCard({ icon, label, onClick, badge }) {
   return (
     <button 
       onClick={onClick}
-      className="flex items-center p-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded-2xl shadow-sm transition-all text-left relative"
+      className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm transition-all text-center relative gap-3"
     >
-      <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl mr-3">
+      <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl">
         {icon}
       </div>
-      <span className="text-sm font-bold leading-tight flex-1">{label}</span>
+      <span className="text-[11px] font-bold leading-tight">{label}</span>
       {badge > 0 && (
-        <span className="absolute top-3 right-3 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full">
+        <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-md">
           {badge}
         </span>
       )}
