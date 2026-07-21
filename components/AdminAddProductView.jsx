@@ -296,7 +296,7 @@ export default function AdminAddProductView({
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-900 border-t border-gray-800">
+      <div className="p-4 bg-gray-900 border-t border-gray-800 mt-auto">
         <button
           type="button"
           onClick={handleSubmit}
