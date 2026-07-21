@@ -1861,7 +1861,7 @@ function ProfileScreen({
         <button
           type="button"
           onClick={onLogout}
-          className="w-full mt-6 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-4 rounded-xl"
+          className="w-full mt-6 mb-20 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-4 rounded-xl"
         >
           Çıkış Yap
         </button>
