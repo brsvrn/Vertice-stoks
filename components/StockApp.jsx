@@ -728,6 +728,9 @@ export default function StockApp() {
       const message = errorMessages[error?.code] || `Google ile giriş başlatılamadı (${error?.code || "bilinmeyen hata"}).`;
       setGoogleSignInError(message);
       setGoogleSignInLoading(false);
+      if (isNativeApp()) {
+        alert("Native Google Login Error: " + JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      }
     }
   };
 
