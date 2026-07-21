@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1092256949189-44dd1ujnpon9519lnjo0uaficdst4ppt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.envantra.app",
+            "certificate_hash": "fcd2379b8b61d16292cf51be4adc67fd9b934c69"
+          }
+        },
+        {
           "client_id": "1092256949189-mmke4a76cicag0drstk9l8odjge6pln3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

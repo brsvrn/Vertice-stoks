@@ -743,7 +743,7 @@ export default function ProductDetailView({
 
       </div>
 
-      <div className="bg-gray-900 border-t border-gray-800 p-4 grid grid-cols-3 gap-3 shrink-0 pb-safe">
+      <div className="bg-gray-900 border-t border-gray-800 p-4 pb-28 grid grid-cols-3 gap-3 shrink-0 pb-safe">
 
         <button
           type="button"
