@@ -3,7 +3,7 @@ include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/.pnpm/@capacitor+android@8.4.2_@capacitor+core@8.4.2/node_modules/@capacitor/android/capacitor')
 
 include ':capacitor-firebase-authentication'
-project(':capacitor-firebase-authentication').projectDir = new File('../node_modules/.pnpm/@capacitor-firebase+authent_c25a35e7d5b1032730e724090ac35cca/node_modules/@capacitor-firebase/authentication/android')
+project(':capacitor-firebase-authentication').projectDir = new File('../node_modules/.pnpm/@capacitor-firebase+authent_cda1e5e54fe8304dd7f06f9a4afe1b4d/node_modules/@capacitor-firebase/authentication/android')
 
 include ':capacitor-mlkit-barcode-scanning'
 project(':capacitor-mlkit-barcode-scanning').projectDir = new File('../node_modules/.pnpm/@capacitor-mlkit+barcode-sc_089c329cad71798e084442f546af3e90/node_modules/@capacitor-mlkit/barcode-scanning/android')

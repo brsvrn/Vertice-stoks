@@ -51,8 +51,8 @@ export default function MoreMenuView({
               icon={<Package size={18} />} 
               iconBg="bg-emerald-500/10" 
               iconColor="text-emerald-500" 
-              title="Stok Yönetimi" 
-              subtitle="Ürünler ve stok kartları"
+              title="Toplu Sayım İşlemleri" 
+              subtitle="Stok sayımı ve mutabakat"
               onClick={onOpenInventory} 
             />
             <MenuRow 

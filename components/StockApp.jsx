@@ -50,6 +50,7 @@ import AdminAddProductView from "./AdminAddProductView";
 import ProductDetailView from "./ProductDetailView";
 import QRScannerModal from "./QRScannerModal";
 import InventoryView from "./InventoryView";
+import ProductsListView from "./ProductsListView";
 import NotificationsView from "./NotificationsView";
 import InventoryHistoryView from "./InventoryHistoryView";
 import ReportsView from "./ReportsView";
@@ -1534,6 +1535,7 @@ export default function StockApp() {
           transactions={transactions}
           inventoryCounts={inventoryCounts}
           onOpenProduct={handleOpenProduct}
+          onOpenProductsList={() => setCurrentView("products")}
           onOpenScanner={() => setIsScannerOpen(true)}
           onOpenAddScanner={() => setIsAddScannerOpen(true)}
           onOpenInventory={() => setCurrentView("inventory")}
@@ -1668,6 +1670,16 @@ export default function StockApp() {
           onBack={handleBackToDashboard}
         />
       )}
+
+      {currentView === "products" && (
+        <ProductsListView
+          products={products}
+          batches={batches}
+          onBack={handleBackToDashboard}
+          onOpenProduct={handleOpenProduct}
+          onAddProduct={() => setCurrentView("admin_add")}
+        />
+      )}
       
       {/* BOTTOM NAVIGATION */}
       <nav className="absolute bottom-0 left-0 right-0 z-10 bg-[var(--surface)] border-t border-[var(--border)] px-4 pb-4 pt-3 bottom-nav-shadow">
@@ -1788,7 +1800,7 @@ function ProfileScreen({
         <h1 className="text-2xl font-black text-white">Profil</h1>
       </header>
       
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-6 pb-32 overflow-y-auto">
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
           <div className="w-20 h-20 mx-auto bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center justify-center text-blue-400 text-3xl font-black">
             {dbUser?.name?.charAt(0)?.toLocaleUpperCase("tr-TR") || "K"}

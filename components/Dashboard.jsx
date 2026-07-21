@@ -47,6 +47,7 @@ export default function Dashboard({
   transactions = [],
   inventoryCounts = [],
   onOpenProduct,
+  onOpenProductsList,
   onOpenScanner,
   onOpenAddScanner,
   onOpenInventory,
@@ -198,8 +199,8 @@ export default function Dashboard({
           <div className="grid grid-cols-2 gap-3">
             <ModuleCard 
               icon={<Package size={20} className="text-emerald-500" />} 
-              label="Stoklar" 
-              onClick={onOpenInventory}
+              label="Ürünler" 
+              onClick={onOpenProductsList}
             />
             <ModuleCard 
               icon={<BarChart3 size={20} className="text-slate-300" />} 

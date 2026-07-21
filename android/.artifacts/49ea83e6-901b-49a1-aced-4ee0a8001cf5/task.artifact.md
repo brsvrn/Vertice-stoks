@@ -1,0 +1,4 @@
+- `[x]` Fix `app/build.gradle` warnings and errors
+    - `[x]` Use `proguard-android-optimize.txt`
+    - `[x]` Handle unused catch parameter
+- `[x]` Verify changes with Gradle Sync

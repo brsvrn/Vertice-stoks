@@ -483,9 +483,9 @@ export default function ProductDetailView({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-white">
+    <div className="flex flex-col h-[100dvh] bg-gray-950 text-white">
 
-      <header className="p-6 bg-gray-900 border-b border-gray-800">
+      <header className="p-6 bg-gray-900 border-b border-gray-800 shrink-0">
 
         <button
           type="button"
@@ -743,7 +743,7 @@ export default function ProductDetailView({
 
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4 grid grid-cols-3 gap-3">
+      <div className="bg-gray-900 border-t border-gray-800 p-4 grid grid-cols-3 gap-3 shrink-0 pb-safe">
 
         <button
           type="button"
