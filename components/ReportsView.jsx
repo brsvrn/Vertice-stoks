@@ -80,14 +80,17 @@ export default function ReportsView({ products = [], batches = [], transactions 
       });
     } catch (error) {
       console.error("Export failed:", error);
-      // Fallback for web
-      const lines = [["Envantra Raporu", new Date().toLocaleString("tr-TR")], ["Toplam stok", summary.stocks], ["Son 30 gün stok girişi", summary.inbound], ["Son 30 gün stok çıkışı", summary.outbound], ["Kritik stoklu ürün", summary.critical.length], [], ["Ürün", "Son 30 gün hareket"], ...summary.topProducts.map((item) => [item.product.name, item.quantity])];
-      const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-      link.download = `envantra-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      if (typeof window !== "undefined" && window.Capacitor?.isNative) {
+        alert("Dışa aktarım başarısız: " + error.message);
+      } else {
+        const lines = [["Envantra Raporu", new Date().toLocaleString("tr-TR")], ["Toplam stok", summary.stocks], ["Son 30 gün stok girişi", summary.inbound], ["Son 30 gün stok çıkışı", summary.outbound], ["Kritik stoklu ürün", summary.critical.length], [], ["Ürün", "Son 30 gün hareket"], ...summary.topProducts.map((item) => [item.product.name, item.quantity])];
+        const csv = `\uFEFF${lines.map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+        link.download = `envantra-rapor-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
     }
   };
 
